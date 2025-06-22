@@ -31,9 +31,9 @@ export default function SignupPage() {
              <div className="flex justify-center mb-4">
                 <Music2 className="h-12 w-12 text-primary" />
             </div>
-            <CardTitle className="text-2xl text-center">Sign Up</CardTitle>
+            <CardTitle className="text-2xl text-center">Create an Account</CardTitle>
             <CardDescription className="text-center">
-              Create your Melody Mapper Teacher Account
+              Sign up for Melody Mapper
             </CardDescription>
           </CardHeader>
           <CardContent>

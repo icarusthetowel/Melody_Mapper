@@ -15,7 +15,7 @@ import { Music2 } from 'lucide-react';
 export default function LoginPage() {
   const router = useRouter();
 
-  const handleLogin = (role: 'admin' | 'teacher') => {
+  const handleLogin = (role: 'teacher') => {
     localStorage.setItem('userRole', role);
     router.push('/dashboard');
   };
@@ -36,14 +36,14 @@ export default function LoginPage() {
           <CardContent>
             <div className="grid gap-4">
               <Button onClick={() => handleLogin('teacher')} className="w-full">
-                Login as Teacher
+                Student / Teacher Login
               </Button>
-              <Button onClick={() => handleLogin('admin')} variant="outline" className="w-full">
-                Login as Admin
+              <Button onClick={() => router.push('/admin-login')} variant="outline" className="w-full">
+                Admin Login
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
-              Don&apos;t have a teacher account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/signup" className="underline">
                 Sign up
               </Link>

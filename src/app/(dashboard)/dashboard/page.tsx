@@ -266,10 +266,16 @@ export default function DashboardPage() {
       </div>
     );
   }
+  
+  const getDashboardTitle = () => {
+    if (role === 'admin') return 'Admin Dashboard';
+    if (role === 'teacher') return 'Student/Teacher Dashboard';
+    return 'Dashboard';
+  }
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold font-headline">{role === 'admin' ? 'Admin Dashboard' : 'Teacher Dashboard'}</h1>
+      <h1 className="text-3xl font-bold font-headline">{getDashboardTitle()}</h1>
       {role === 'admin' ? <AdminDashboard /> : <TeacherDashboard />}
     </div>
   );
