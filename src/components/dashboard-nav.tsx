@@ -1,0 +1,44 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from '@/components/ui/sidebar';
+import { LayoutDashboard, Calendar, Bot, Cog } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const navItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/schedule', label: 'Schedule', icon: Calendar },
+  {
+    href: '/practice-plan-generator',
+    label: 'AI Practice Planner',
+    icon: Bot,
+  },
+  { href: '/settings', label: 'Settings', icon: Cog },
+];
+
+export function DashboardNav() {
+  const pathname = usePathname();
+
+  return (
+    <SidebarMenu>
+      {navItems.map((item) => (
+        <SidebarMenuItem key={item.href}>
+          <Link href={item.href} legacyBehavior passHref>
+            <SidebarMenuButton
+              isActive={pathname === item.href}
+              className={cn('w-full justify-start')}
+            >
+              <item.icon className="h-5 w-5 mr-3" />
+              <span>{item.label}</span>
+            </SidebarMenuButton>
+          </Link>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
+  );
+}

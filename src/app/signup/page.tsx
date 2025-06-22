@@ -11,22 +11,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Music2 } from 'lucide-react';
 
-export default function LoginPage() {
+export default function SignupPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="w-full max-w-md mx-4">
+       <div className="w-full max-w-md mx-4">
         <Card className="mx-auto max-w-sm">
           <CardHeader>
-            <div className="flex justify-center mb-4">
+             <div className="flex justify-center mb-4">
                 <Music2 className="h-12 w-12 text-primary" />
             </div>
-            <CardTitle className="text-2xl text-center">Login</CardTitle>
+            <CardTitle className="text-2xl text-center">Sign Up</CardTitle>
             <CardDescription className="text-center">
-              Welcome back to Melody Mapper
+              Create your Melody Mapper account
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4">
+               <div className="grid gap-2">
+                <Label htmlFor="full-name">Full Name</Label>
+                <Input id="full-name" placeholder="John Doe" required />
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -37,24 +41,22 @@ export default function LoginPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                </div>
+                <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" required />
               </div>
-              <Button type="submit" className="w-full as" asChild>
-                <Link href="/dashboard">Login</Link>
+              <Button type="submit" className="w-full" asChild>
+                <Link href="/dashboard">Create an account</Link>
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{' '}
-              <Link href="/signup" className="underline">
-                Sign up
+              Already have an account?{' '}
+              <Link href="/" className="underline">
+                Login
               </Link>
             </div>
           </CardContent>
         </Card>
-      </div>
+       </div>
     </div>
   );
 }
