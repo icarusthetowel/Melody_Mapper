@@ -84,12 +84,12 @@ export default function DashboardLayout({ children }: PropsWithChildren) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex items-center justify-between p-4 bg-card md:bg-transparent md:border-b">
+        <header className="grid grid-cols-3 items-center p-4 bg-card md:bg-transparent md:border-b">
             <div className="md:hidden">
                  <SidebarTrigger />
             </div>
-            <div className='flex-1 text-center md:text-left'>
-                {/* Optional Header Content */}
+            <div className='col-start-2 col-span-1 text-center'>
+                <h1 className="text-xl font-bold font-headline">Store 723</h1>
             </div>
         </header>
         <main className="p-4 md:p-6">{children}</main>
