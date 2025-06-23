@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -11,6 +12,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Student } from '@/lib/types';
+import { allStudents } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Users, Calendar, Music, PlusCircle, UserPlus, Loader2 } from 'lucide-react';
 import Image from 'next/image';
@@ -33,41 +35,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const allStudents: Student[] = [
-  {
-    id: '1',
-    name: 'Ella Vance',
-    instrument: 'Piano',
-    progress: 75,
-    avatarUrl: 'https://placehold.co/100x100.png',
-    aiHint: 'girl smiling',
-  },
-  {
-    id: '2',
-    name: 'Liam Foster',
-    instrument: 'Guitar',
-    progress: 40,
-    avatarUrl: 'https://placehold.co/100x100.png',
-    aiHint: 'boy playing guitar'
-  },
-  {
-    id: '3',
-    name: 'Noah Hayes',
-    instrument: 'Piano',
-    progress: 90,
-    avatarUrl: 'https://placehold.co/100x100.png',
-    aiHint: 'boy glasses'
-  },
-  {
-    id: '4',
-    name: 'Olivia Chen',
-    instrument: 'Guitar',
-    progress: 60,
-    avatarUrl: 'https://placehold.co/100x100.png',
-    aiHint: 'girl asian'
-  },
-];
-
 const StatCard = ({
   title,
   value,
@@ -89,7 +56,7 @@ const StatCard = ({
 );
 
 const StudentCard = ({ student }: { student: Student }) => (
-  <Card className="flex flex-col">
+  <Card className="flex flex-col w-full hover:shadow-lg transition-shadow duration-200">
     <CardHeader className="flex items-center gap-4 flex-row">
       <Avatar className="h-12 w-12">
         <AvatarImage src={student.avatarUrl} alt={student.name} data-ai-hint={student.aiHint} />
@@ -122,7 +89,9 @@ const AdminDashboard = () => (
       <h2 className="text-2xl font-bold font-headline mb-4">All Student Progress</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {allStudents.map((student) => (
-          <StudentCard key={student.id} student={student} />
+          <Link href={`/student/${student.id}`} key={student.id} className="flex">
+            <StudentCard student={student} />
+          </Link>
         ))}
       </div>
     </div>
@@ -158,6 +127,7 @@ const TeacherDashboard = () => {
       progress: Math.floor(Math.random() * 20), // Start with some initial progress
       avatarUrl: 'https://placehold.co/100x100.png',
       aiHint: 'person student',
+      progressHistory: [],
     };
 
     setStudents(prev => [...prev, newStudent]);
