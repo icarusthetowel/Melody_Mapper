@@ -11,8 +11,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { useRouter } from 'next/navigation';
+import { LogOut } from 'lucide-react';
 
 export default function SettingsPage() {
+  const router = useRouter();
+
+  const handleLogout = () => {
+    localStorage.removeItem('userRole');
+    router.push('/');
+  };
+  
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold font-headline">Settings</h1>
@@ -60,6 +69,21 @@ export default function SettingsPage() {
             <Input id="confirm-password" type="password" />
           </div>
           <Button disabled>Change Password</Button>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Session</CardTitle>
+          <CardDescription>Log out of your current session.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="destructive" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+          </Button>
         </CardContent>
       </Card>
     </div>

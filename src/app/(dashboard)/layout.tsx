@@ -64,21 +64,23 @@ export default function DashboardLayout({ children }: PropsWithChildren) {
         <SidebarContent>
           <DashboardNav />
         </SidebarContent>
-        <SidebarFooter className="p-4 flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src="https://placehold.co/100x100.png" alt="@user" data-ai-hint="person smiling" />
-              <AvatarFallback>{getDisplayName().charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-semibold">{getDisplayName()}</p>
-              <p className="text-sm text-muted-foreground">{getEmail()}</p>
+        <SidebarFooter className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src="https://placehold.co/100x100.png" alt="@user" data-ai-hint="person smiling" />
+                <AvatarFallback>{getDisplayName().charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 overflow-hidden">
+                <p className="font-semibold truncate">{getDisplayName()}</p>
+                <p className="text-sm text-muted-foreground truncate">{getEmail()}</p>
+              </div>
             </div>
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="flex-shrink-0">
+              <LogOut className="h-4 w-4" />
+              <span className="sr-only">Logout</span>
+            </Button>
           </div>
-           <Button variant="ghost" size="sm" onClick={handleLogout} className="justify-start">
-             <LogOut className="mr-2 h-4 w-4" />
-             Logout
-           </Button>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
