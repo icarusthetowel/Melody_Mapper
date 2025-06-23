@@ -83,6 +83,11 @@ export default function AdminLoginPage() {
                 Back to main login
               </Link>
             </div>
+            <div className="mt-2 text-center text-sm">
+              <Link href="/admin-signup" className="underline">
+                Sign up as Admin
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
