@@ -13,15 +13,31 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Music2 } from 'lucide-react';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { toast } = useToast();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleLogin = () => {
-    // In a real app, you'd validate credentials here.
-    // For this prototype, we'll just set the role and redirect.
-    localStorage.setItem('userRole', 'teacher');
-    router.push('/dashboard');
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const foundUser = users.find(
+      (user: any) => user.email === email && user.password === password
+    );
+
+    if (foundUser) {
+      localStorage.setItem('userRole', 'teacher');
+      router.push('/dashboard');
+    } else {
+      toast({
+        title: 'Error',
+        description: 'Invalid email or password.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -32,7 +48,9 @@ export default function LoginPage() {
             <div className="flex justify-center mb-4">
               <Music2 className="h-12 w-12 text-primary" />
             </div>
-            <CardTitle className="text-2xl text-center">Student/Teacher Login</CardTitle>
+            <CardTitle className="text-2xl text-center">
+              Student/Teacher Login
+            </CardTitle>
             <CardDescription className="text-center">
               Enter your credentials to access your dashboard
             </CardDescription>
@@ -46,11 +64,19 @@ export default function LoginPage() {
                   type="email"
                   placeholder="user@example.com"
                   required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" required />
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
               <Button onClick={handleLogin} className="w-full">
                 Login
