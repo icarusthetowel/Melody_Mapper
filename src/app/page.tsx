@@ -30,6 +30,7 @@ export default function LoginPage() {
 
     if (foundUser) {
       localStorage.setItem('userRole', 'teacher');
+      localStorage.setItem('userEmail', email);
       router.push('/dashboard');
     } else {
       toast({

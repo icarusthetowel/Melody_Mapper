@@ -8,11 +8,12 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import type { Student } from '@/lib/types';
-import { allStudents } from '@/lib/data';
+import type { Student, User } from '@/lib/types';
+import { allStudents, allTeachers } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Users, Calendar, Music, PlusCircle, Trash2, Loader2 } from 'lucide-react';
 import {
@@ -65,7 +66,17 @@ const StatCard = ({
   </Card>
 );
 
-const StudentCard = ({ student, onDelete }: { student: Student, onDelete?: (studentId: string) => void }) => (
+const StudentCard = ({
+  student,
+  onDelete,
+  teachers,
+  onAssignTeacher,
+}: {
+  student: Student;
+  onDelete?: (studentId: string) => void;
+  teachers?: User[];
+  onAssignTeacher?: (studentId: string, teacherId: string | null) => void;
+}) => (
   <Card className="flex flex-col w-full hover:shadow-lg transition-shadow duration-200 relative group h-full">
     {onDelete && (
       <AlertDialog>
@@ -74,7 +85,7 @@ const StudentCard = ({ student, onDelete }: { student: Student, onDelete?: (stud
             variant="destructive"
             size="icon"
             className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-            onClick={(e) => e.preventDefault()}
+            onClick={(e) => e.stopPropagation()}
           >
             <Trash2 className="h-4 w-4" />
             <span className="sr-only">Delete {student.name}</span>
@@ -113,6 +124,27 @@ const StudentCard = ({ student, onDelete }: { student: Student, onDelete?: (stud
       </div>
       <Progress value={student.progress} aria-label={`${student.name}'s progress`} />
     </CardContent>
+    {onAssignTeacher && teachers && (
+      <CardFooter>
+        <div className="w-full" onClick={(e) => e.stopPropagation()}>
+          <Label htmlFor={`teacher-select-${student.id}`} className="text-xs text-muted-foreground">Assign Teacher</Label>
+          <Select
+            defaultValue={student.teacherId || 'none'}
+            onValueChange={(value) => onAssignTeacher(student.id, value === 'none' ? null : value)}
+          >
+            <SelectTrigger id={`teacher-select-${student.id}`} className="h-9 mt-1">
+              <SelectValue placeholder="Select teacher" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              {teachers.map((teacher) => (
+                <SelectItem key={teacher.id} value={teacher.email}>{teacher.email}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardFooter>
+    )}
   </Card>
 );
 
@@ -122,15 +154,20 @@ const AdminDashboard = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
+  const [teachers, setTeachers] = useState<User[]>([]);
 
   useEffect(() => {
-    // Keep admin dashboard in sync with global data for prototype
     setStudents(allStudents);
-  }, [allStudents]);
+    const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
+    const uniqueTeachers = [
+      ...allTeachers,
+      ...storedUsers.filter((u: User) => !allTeachers.some(t => t.email === u.email))
+    ];
+    setTeachers(uniqueTeachers);
+  }, []);
 
   const handleRegisterStudent = () => {
     if (!newStudentName || !newStudentInstrument) return;
-
     const newStudent: Student = {
       id: new Date().toISOString(),
       name: newStudentName,
@@ -140,12 +177,8 @@ const AdminDashboard = () => {
       aiHint: 'person student',
       progressHistory: [],
     };
-    
-    // Add to global list
     allStudents.push(newStudent);
-    // Update local state to re-render
     setStudents([...allStudents]);
-
     setNewStudentName('');
     setNewStudentInstrument('Piano');
     setIsDialogOpen(false);
@@ -156,7 +189,14 @@ const AdminDashboard = () => {
     if (index > -1) {
       allStudents.splice(index, 1);
     }
-    // Update local state to re-render
+    setStudents([...allStudents]);
+  };
+
+  const handleAssignTeacher = (studentId: string, teacherId: string | null) => {
+    const studentIndex = allStudents.findIndex(s => s.id === studentId);
+    if (studentIndex !== -1) {
+      allStudents[studentIndex].teacherId = teacherId;
+    }
     setStudents([...allStudents]);
   };
   
@@ -225,7 +265,12 @@ const AdminDashboard = () => {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {students.map((student) => (
               <Link href={`/student/${student.id}`} key={student.id} className="flex">
-                <StudentCard student={student} onDelete={handleDeleteStudent} />
+                <StudentCard
+                  student={student}
+                  onDelete={handleDeleteStudent}
+                  teachers={teachers}
+                  onAssignTeacher={handleAssignTeacher}
+                />
               </Link>
             ))}
         </div>
@@ -239,23 +284,32 @@ const TeacherDashboard = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const userEmail = localStorage.getItem('userEmail');
+    setCurrentUserEmail(userEmail);
+    if(userEmail) {
+      setStudents(allStudents.filter(s => s.teacherId === userEmail));
+    }
+  }, []);
 
   const handleRegisterStudent = () => {
-    if (!newStudentName || !newStudentInstrument) return;
+    if (!newStudentName || !newStudentInstrument || !currentUserEmail) return;
 
     const newStudent: Student = {
       id: new Date().toISOString(),
       name: newStudentName,
       instrument: newStudentInstrument,
-      progress: Math.floor(Math.random() * 20), // Start with some initial progress
+      progress: Math.floor(Math.random() * 20),
       avatarUrl: 'https://placehold.co/100x100.png',
       aiHint: 'person student',
       progressHistory: [],
+      teacherId: currentUserEmail,
     };
-
-    setStudents(prev => [...prev, newStudent]);
-    // Also add to global list for admin to see
+    
     allStudents.push(newStudent);
+    setStudents(prev => [...prev, newStudent]);
 
     setNewStudentName('');
     setNewStudentInstrument('Piano');
@@ -263,12 +317,11 @@ const TeacherDashboard = () => {
   };
   
   const handleDeleteStudent = (studentId: string) => {
-    setStudents(prev => prev.filter(student => student.id !== studentId));
-    // Also remove from global list
     const index = allStudents.findIndex(s => s.id === studentId);
     if (index > -1) {
       allStudents.splice(index, 1);
     }
+    setStudents(prev => prev.filter(student => student.id !== studentId));
   };
   
   const instruments = students.reduce((acc, student) => {
@@ -345,7 +398,7 @@ const TeacherDashboard = () => {
           <Card className="flex flex-col items-center justify-center p-10 text-center">
             <CardHeader>
                 <CardTitle>No students yet!</CardTitle>
-                <CardDescription>Click "Add Student" to add your first student and start tracking their progress.</CardDescription>
+                <CardDescription>Click "Add Student" to add your first student, or wait for an Admin to assign one to you.</CardDescription>
             </CardHeader>
             <CardContent>
                 <PlusCircle className="h-12 w-12 text-muted-foreground" />

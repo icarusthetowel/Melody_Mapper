@@ -6,6 +6,12 @@ export interface ProgressLog {
   progress: number;
 }
 
+export interface User {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
 export interface Student {
   id: string;
   name: string;
@@ -14,13 +20,14 @@ export interface Student {
   avatarUrl: string;
   aiHint?: string;
   progressHistory: ProgressLog[];
+  teacherId?: string | null;
 }
 
 export interface Lesson {
-    id: string;
-    studentName: string;
-    instrument: 'Guitar' | 'Piano';
-    date: Date;
-    avatarUrl: string;
-    aiHint?: string;
+  id: string;
+  studentName: string;
+  instrument: 'Guitar' | 'Piano';
+  date: Date;
+  avatarUrl: string;
+  aiHint?: string;
 }

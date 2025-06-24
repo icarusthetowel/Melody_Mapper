@@ -19,34 +19,36 @@ import { useRouter } from 'next/navigation';
 
 export default function DashboardLayout({ children }: PropsWithChildren) {
   const [role, setRole] = useState<string | null>(null);
+  const [user, setUser] = useState<{name: string, email: string} | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    // Prevents redirect flicker on initial load
     const userRole = localStorage.getItem('userRole');
     if (userRole) {
       setRole(userRole);
+      if (userRole === 'teacher') {
+          const userEmail = localStorage.getItem('userEmail');
+          const users = JSON.parse(localStorage.getItem('users') || '[]');
+          const foundUser = users.find((u: any) => u.email === userEmail);
+           if(foundUser) {
+             setUser({name: foundUser.fullName, email: foundUser.email});
+          }
+      } else if(userRole === 'admin') {
+          setUser({name: 'Admin', email: 'admin@melody.com'});
+      }
     } else {
-      router.push('/'); // Redirect to login if no role is set
+      router.push('/');
     }
   }, [router]);
 
   const handleLogout = () => {
     localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');
     router.push('/');
   };
-
-  const getEmail = () => {
-    if (role === 'admin') return 'admin@melody.com';
-    if (role === 'teacher') return 'user@melody.com';
-    return '';
-  }
   
-  const getDisplayName = () => {
-    if (role === 'admin') return 'Admin';
-    if (role === 'teacher') return 'Student/Teacher';
-    return 'User';
-  }
+  const getDisplayName = () => user?.name || 'User';
+  const getEmail = () => user?.email || '';
 
   return (
     <SidebarProvider>

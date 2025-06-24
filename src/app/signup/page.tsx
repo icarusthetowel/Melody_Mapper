@@ -45,10 +45,10 @@ export default function SignupPage() {
       return;
     }
 
-    const newUser = { fullName, email, password };
+    const newUser = { id: new Date().toISOString(), fullName, email, password };
     users.push(newUser);
     localStorage.setItem('users', JSON.stringify(users));
-
+    localStorage.setItem('userEmail', email);
     localStorage.setItem('userRole', 'teacher');
     router.push('/dashboard');
   };
