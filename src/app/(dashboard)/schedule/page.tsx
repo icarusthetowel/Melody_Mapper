@@ -1,6 +1,8 @@
+
 'use client';
 
-import { add } from 'date-fns';
+import { useState, useEffect, useMemo } from 'react';
+import { add, format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Card,
@@ -8,54 +10,142 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from '@/components/ui/card';
-import type { Lesson } from '@/lib/types';
+import type { Lesson, Student } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { PlusCircle, Trash2 } from 'lucide-react';
+import { allStudents } from '@/lib/data';
+import { useToast } from '@/hooks/use-toast';
 
-const lessonTemplates = [
-  {
-    id: '1',
-    studentName: 'Ella Vance',
-    instrument: 'Piano' as const,
-    avatarUrl: 'https://placehold.co/100x100.png',
-    aiHint: 'girl smiling',
-    dateOffset: 0,
-  },
-  {
-    id: '2',
-    studentName: 'Liam Foster',
-    instrument: 'Guitar' as const,
-    avatarUrl: 'https://placehold.co/100x100.png',
-    aiHint: 'boy playing guitar',
-    dateOffset: 1,
-  },
-  {
-    id: '3',
-    studentName: 'Noah Hayes',
-    instrument: 'Piano' as const,
-    avatarUrl: 'https://placehold.co/100x100.png',
-    aiHint: 'boy glasses',
-    dateOffset: 3,
-  },
-];
+// Helper to compare dates by ignoring time
+const isSameDay = (dateA: Date, dateB: Date) => {
+  return dateA.toDateString() === dateB.toDateString();
+};
 
 export default function SchedulePage() {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // Dialog state
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newLessonStudentId, setNewLessonStudentId] = useState('');
+  const [newLessonTime, setNewLessonTime] = useState('09:00');
 
   useEffect(() => {
     setIsClient(true);
-    const now = new Date();
-    const generatedLessons = lessonTemplates.map((t) => ({
-      ...t,
-      date: add(now, { days: t.dateOffset }),
-    }));
-    setLessons(generatedLessons);
-    setSelectedDate(now);
+    const userRole = localStorage.getItem('userRole');
+    setRole(userRole);
+
+    try {
+      const storedLessons = localStorage.getItem('lessons');
+      if (storedLessons) {
+        // Re-hydrate dates from ISO strings
+        const parsedLessons = JSON.parse(storedLessons).map((l: any) => ({
+          ...l,
+          date: new Date(l.date),
+        }));
+        setLessons(parsedLessons);
+      } else {
+        // Set initial lessons if none in storage
+        const initialLessons = [
+          { id: '1', studentId: '1', date: add(new Date(), { days: 0 }), time: '15:00' },
+          { id: '2', studentId: '2', date: add(new Date(), { days: 1 }), time: '11:00' },
+          { id: '3', studentId: '3', date: add(new Date(), { days: 3 }), time: '14:00' },
+        ];
+        setLessons(initialLessons);
+      }
+    } catch (error) {
+      console.error('Failed to parse lessons from localStorage', error);
+    }
   }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem('lessons', JSON.stringify(lessons));
+    }
+  }, [lessons, isClient]);
+
+  const lessonsForSelectedDay = useMemo(() => {
+    return lessons
+      .filter((lesson) => isSameDay(lesson.date, selectedDate))
+      .sort((a, b) => a.time.localeCompare(b.time));
+  }, [lessons, selectedDate]);
+
+  const getStudentById = (id: string): Student | undefined => {
+    return allStudents.find((s) => s.id === id);
+  };
+  
+  const handleAddLesson = () => {
+    if (!newLessonStudentId || !newLessonTime) {
+       toast({
+        title: 'Error',
+        description: 'Please select a student and enter a time.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    const newLesson: Lesson = {
+      id: new Date().toISOString(),
+      studentId: newLessonStudentId,
+      date: selectedDate,
+      time: newLessonTime,
+    };
+    
+    setLessons(prev => [...prev, newLesson]);
+    toast({
+      title: 'Success!',
+      description: 'Lesson has been added to the schedule.',
+    });
+    
+    // Reset form
+    setNewLessonStudentId('');
+    setNewLessonTime('09:00');
+    setIsDialogOpen(false);
+  };
+  
+  const handleRemoveLesson = (lessonId: string) => {
+    setLessons(prev => prev.filter(l => l.id !== lessonId));
+     toast({
+      title: 'Success!',
+      description: 'Lesson has been removed.',
+    });
+  };
 
   if (!isClient) {
     return (
@@ -107,14 +197,14 @@ export default function SchedulePage() {
             <CardHeader>
               <CardTitle>Lesson Calendar</CardTitle>
               <CardDescription>
-                View your scheduled lessons at a glance.
+                View your scheduled lessons at a glance. Select a day to see details.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Calendar
                 mode="single"
                 selected={selectedDate}
-                onSelect={setSelectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
                 className="rounded-md border w-full"
                 modifiers={{ booked: lessons.map((l) => l.date) }}
                 modifiersStyles={{
@@ -129,42 +219,114 @@ export default function SchedulePage() {
         </div>
         <div className="lg:col-span-1">
           <Card>
-            <CardHeader>
-              <CardTitle>Upcoming Lessons</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>
+                  Lessons for {format(selectedDate, 'MMMM d')}
+                </CardTitle>
+              </div>
+              {role === 'admin' && (
+                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Lesson
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add a new lesson</DialogTitle>
+                         <DialogDescription>
+                          Schedule a new lesson for {format(selectedDate, 'MMMM d, yyyy')}.
+                        </DialogDescription>
+                      </DialogHeader>
+                       <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                             <Label htmlFor="student" className="text-right">Student</Label>
+                             <Select onValueChange={setNewLessonStudentId} value={newLessonStudentId}>
+                                <SelectTrigger className="col-span-3">
+                                  <SelectValue placeholder="Select a student" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {allStudents.map(student => (
+                                    <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                          </div>
+                           <div className="grid grid-cols-4 items-center gap-4">
+                             <Label htmlFor="time" className="text-right">Time</Label>
+                              <Input id="time" type="time" value={newLessonTime} onChange={e => setNewLessonTime(e.target.value)} className="col-span-3" />
+                           </div>
+                       </div>
+                       <DialogFooter>
+                          <Button onClick={handleAddLesson}>Save Lesson</Button>
+                       </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+              )}
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {lessons.map((lesson) => (
-                  <div key={lesson.id} className="flex items-center gap-4">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage
-                        src={lesson.avatarUrl}
-                        alt={lesson.studentName}
-                        data-ai-hint={lesson.aiHint}
-                      />
-                      <AvatarFallback>
-                        {lesson.studentName.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-grow">
-                      <p className="font-semibold">{lesson.studentName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {lesson.instrument}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        {lesson.date.toLocaleDateString(undefined, {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </p>
-                      <p className="text-xs text-muted-foreground">3:00 PM</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {lessonsForSelectedDay.length > 0 ? (
+                 <div className="space-y-4">
+                  {lessonsForSelectedDay.map((lesson) => {
+                    const student = getStudentById(lesson.studentId);
+                    if (!student) return null;
+                    return (
+                       <div key={lesson.id} className="flex items-center gap-4 group">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage
+                              src={student.avatarUrl}
+                              alt={student.name}
+                              data-ai-hint={student.aiHint}
+                            />
+                            <AvatarFallback>
+                              {student.name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-grow">
+                            <p className="font-semibold">{student.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {student.instrument}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium">
+                              {lesson.time}
+                            </p>
+                          </div>
+                           {role === 'admin' && (
+                             <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                 <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will permanently delete the lesson for {student.name} at {lesson.time}.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleRemoveLesson(lesson.id)}>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                           )}
+                       </div>
+                    );
+                  })}
+                 </div>
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                    <p>No lessons scheduled for this day.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

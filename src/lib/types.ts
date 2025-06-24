@@ -1,3 +1,4 @@
+
 export type Instrument = 'Guitar' | 'Piano' | 'Violin' | 'Drums';
 
 export interface ProgressLog {
@@ -25,9 +26,7 @@ export interface Student {
 
 export interface Lesson {
   id: string;
-  studentName: string;
-  instrument: 'Guitar' | 'Piano';
+  studentId: string;
   date: Date;
-  avatarUrl: string;
-  aiHint?: string;
+  time: string;
 }
