@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Student } from '@/lib/types';
 import { allStudents } from '@/lib/data';
 import { Button } from '@/components/ui/button';
-import { Users, Calendar, Music, PlusCircle, UserPlus, Loader2 } from 'lucide-react';
+import { Users, Calendar, Music, PlusCircle, Trash2, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import {
   Dialog,
@@ -25,6 +25,17 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -55,8 +66,36 @@ const StatCard = ({
   </Card>
 );
 
-const StudentCard = ({ student }: { student: Student }) => (
-  <Card className="flex flex-col w-full hover:shadow-lg transition-shadow duration-200">
+const StudentCard = ({ student, onDelete }: { student: Student, onDelete?: (studentId: string) => void }) => (
+  <Card className="flex flex-col w-full hover:shadow-lg transition-shadow duration-200 relative group">
+    {onDelete && (
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button
+            variant="destructive"
+            size="icon"
+            className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span className="sr-only">Delete {student.name}</span>
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete {student.name} and all their associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onDelete(student.id)}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    )}
     <CardHeader className="flex items-center gap-4 flex-row">
       <Avatar className="h-12 w-12">
         <AvatarImage src={student.avatarUrl} alt={student.name} data-ai-hint={student.aiHint} />
@@ -76,6 +115,7 @@ const StudentCard = ({ student }: { student: Student }) => (
     </CardContent>
   </Card>
 );
+
 
 const AdminDashboard = () => (
   <>
@@ -136,6 +176,10 @@ const TeacherDashboard = () => {
     setIsDialogOpen(false);
   };
   
+  const handleDeleteStudent = (studentId: string) => {
+    setStudents(prev => prev.filter(student => student.id !== studentId));
+  };
+  
   const instruments = students.reduce((acc, student) => {
     if (!acc.includes(student.instrument)) {
       acc.push(student.instrument);
@@ -157,13 +201,13 @@ const TeacherDashboard = () => {
              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Register Student
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Student
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Register New Student</DialogTitle>
+                  <DialogTitle>Add New Student</DialogTitle>
                   <DialogDescription>
                     Add a new student to your roster. Click save when you're done.
                   </DialogDescription>
@@ -201,14 +245,14 @@ const TeacherDashboard = () => {
         {students.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {students.map((student) => (
-              <StudentCard key={student.id} student={student} />
+              <StudentCard key={student.id} student={student} onDelete={handleDeleteStudent} />
             ))}
           </div>
         ) : (
           <Card className="flex flex-col items-center justify-center p-10 text-center">
             <CardHeader>
                 <CardTitle>No students yet!</CardTitle>
-                <CardDescription>Click "Register Student" to add your first student and start tracking their progress.</CardDescription>
+                <CardDescription>Click "Add Student" to add your first student and start tracking their progress.</CardDescription>
             </CardHeader>
             <CardContent>
                 <PlusCircle className="h-12 w-12 text-muted-foreground" />
