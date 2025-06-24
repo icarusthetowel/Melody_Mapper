@@ -15,7 +15,6 @@ import type { Student } from '@/lib/types';
 import { allStudents } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Users, Calendar, Music, PlusCircle, Trash2, Loader2 } from 'lucide-react';
-import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -67,7 +66,7 @@ const StatCard = ({
 );
 
 const StudentCard = ({ student, onDelete }: { student: Student, onDelete?: (studentId: string) => void }) => (
-  <Card className="flex flex-col w-full hover:shadow-lg transition-shadow duration-200 relative group">
+  <Card className="flex flex-col w-full hover:shadow-lg transition-shadow duration-200 relative group h-full">
     {onDelete && (
       <AlertDialog>
         <AlertDialogTrigger asChild>
@@ -75,6 +74,7 @@ const StudentCard = ({ student, onDelete }: { student: Student, onDelete?: (stud
             variant="destructive"
             size="icon"
             className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            onClick={(e) => e.preventDefault()}
           >
             <Trash2 className="h-4 w-4" />
             <span className="sr-only">Delete {student.name}</span>
@@ -117,39 +117,122 @@ const StudentCard = ({ student, onDelete }: { student: Student, onDelete?: (stud
 );
 
 
-const AdminDashboard = () => (
-  <>
-    <div className="grid gap-4 md:grid-cols-3">
-      <StatCard title="Total Students" value="4" icon={<Users className="h-4 w-4 text-muted-foreground" />} />
-      <StatCard title="Upcoming Lessons" value="3" icon={<Calendar className="h-4 w-4 text-muted-foreground" />} />
-      <StatCard title="Instruments" value="2" icon={<Music className="h-4 w-4 text-muted-foreground" />} />
-    </div>
+const AdminDashboard = () => {
+  const [students, setStudents] = useState<Student[]>(allStudents);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newStudentName, setNewStudentName] = useState('');
+  const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
 
-    <div>
-      <h2 className="text-2xl font-bold font-headline mb-4">All Student Progress</h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {allStudents.map((student) => (
-          <Link href={`/student/${student.id}`} key={student.id} className="flex">
-            <StudentCard student={student} />
-          </Link>
-        ))}
+  useEffect(() => {
+    // Keep admin dashboard in sync with global data for prototype
+    setStudents(allStudents);
+  }, [allStudents]);
+
+  const handleRegisterStudent = () => {
+    if (!newStudentName || !newStudentInstrument) return;
+
+    const newStudent: Student = {
+      id: new Date().toISOString(),
+      name: newStudentName,
+      instrument: newStudentInstrument,
+      progress: Math.floor(Math.random() * 20),
+      avatarUrl: 'https://placehold.co/100x100.png',
+      aiHint: 'person student',
+      progressHistory: [],
+    };
+    
+    // Add to global list
+    allStudents.push(newStudent);
+    // Update local state to re-render
+    setStudents([...allStudents]);
+
+    setNewStudentName('');
+    setNewStudentInstrument('Piano');
+    setIsDialogOpen(false);
+  };
+  
+  const handleDeleteStudent = (studentId: string) => {
+    const index = allStudents.findIndex(s => s.id === studentId);
+    if (index > -1) {
+      allStudents.splice(index, 1);
+    }
+    // Update local state to re-render
+    setStudents([...allStudents]);
+  };
+  
+  const instruments = students.reduce((acc, student) => {
+    if (!acc.includes(student.instrument)) {
+      acc.push(student.instrument);
+    }
+    return acc;
+  }, [] as Array<'Guitar' | 'Piano' | 'Violin' | 'Drums'>);
+
+  return (
+    <>
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard title="Total Students" value={students.length.toString()} icon={<Users className="h-4 w-4 text-muted-foreground" />} />
+        <StatCard title="Upcoming Lessons" value="3" icon={<Calendar className="h-4 w-4 text-muted-foreground" />} />
+        <StatCard title="Instruments" value={instruments.length.toString()} icon={<Music className="h-4 w-4 text-muted-foreground" />} />
       </div>
-    </div>
 
-     <Card>
-      <CardHeader>
-          <CardTitle>Welcome, Admin!</CardTitle>
-          <CardDescription>Here's a quick guide to get you started.</CardDescription>
-      </CardHeader>
-      <CardContent>
-          <Image src="https://placehold.co/1200x400.png" alt="Music lesson" data-ai-hint="music lesson" width={1200} height={400} className="rounded-lg mb-4" />
-          <p className="text-muted-foreground">
-              You can view all student data, schedules, and generate practice plans from the navigation menu.
-          </p>
-      </CardContent>
-     </Card>
-  </>
-);
+      <div>
+        <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold font-headline">All Student Progress</h2>
+             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Student
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Add New Student</DialogTitle>
+                  <DialogDescription>
+                    Add a new student to the platform. Click save when you're done.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">
+                      Name
+                    </Label>
+                    <Input id="name" value={newStudentName} onChange={e => setNewStudentName(e.target.value)} className="col-span-3" placeholder="Ella Vance" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="instrument" className="text-right">
+                      Instrument
+                    </Label>
+                     <Select onValueChange={(value) => setNewStudentInstrument(value as 'Guitar' | 'Piano' | 'Violin' | 'Drums')} defaultValue={newStudentInstrument}>
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select instrument" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Piano">Piano</SelectItem>
+                          <SelectItem value="Guitar">Guitar</SelectItem>
+                          <SelectItem value="Violin">Violin</SelectItem>
+                          <SelectItem value="Drums">Drums</SelectItem>
+                        </SelectContent>
+                      </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleRegisterStudent}>Save student</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {students.map((student) => (
+              <Link href={`/student/${student.id}`} key={student.id} className="flex">
+                <StudentCard student={student} onDelete={handleDeleteStudent} />
+              </Link>
+            ))}
+        </div>
+      </div>
+    </>
+  );
+};
 
 const TeacherDashboard = () => {
   const [students, setStudents] = useState<Student[]>([]);
@@ -171,6 +254,9 @@ const TeacherDashboard = () => {
     };
 
     setStudents(prev => [...prev, newStudent]);
+    // Also add to global list for admin to see
+    allStudents.push(newStudent);
+
     setNewStudentName('');
     setNewStudentInstrument('Piano');
     setIsDialogOpen(false);
@@ -178,6 +264,11 @@ const TeacherDashboard = () => {
   
   const handleDeleteStudent = (studentId: string) => {
     setStudents(prev => prev.filter(student => student.id !== studentId));
+    // Also remove from global list
+    const index = allStudents.findIndex(s => s.id === studentId);
+    if (index > -1) {
+      allStudents.splice(index, 1);
+    }
   };
   
   const instruments = students.reduce((acc, student) => {
@@ -245,7 +336,9 @@ const TeacherDashboard = () => {
         {students.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {students.map((student) => (
-              <StudentCard key={student.id} student={student} onDelete={handleDeleteStudent} />
+               <Link href={`/student/${student.id}`} key={student.id} className="flex">
+                  <StudentCard student={student} onDelete={handleDeleteStudent} />
+               </Link>
             ))}
           </div>
         ) : (
