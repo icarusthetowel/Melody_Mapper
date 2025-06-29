@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -79,36 +80,34 @@ const StudentCard = ({
 }) => (
   <Card className="flex flex-col w-full hover:shadow-lg transition-shadow duration-200 relative group h-full">
     {onDelete && (
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button
-            variant="destructive"
-            size="icon"
-            className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-            <span className="sr-only">Delete {student.name}</span>
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete {student.name} and all their associated data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => onDelete(student.id)}>
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <div data-no-navigate="true">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="destructive"
+              size="icon"
+              className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="sr-only">Delete {student.name}</span>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete {student.name} and all their associated data.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => onDelete(student.id)}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     )}
     <CardHeader className="flex items-center gap-4 flex-row">
       <Avatar className="h-12 w-12">
@@ -129,10 +128,7 @@ const StudentCard = ({
     </CardContent>
     {onAssignTeacher && teachers && (
       <CardFooter>
-        <div className="w-full" onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}>
+        <div className="w-full" data-no-navigate="true">
           <Label htmlFor={`teacher-select-${student.id}`} className="text-xs text-muted-foreground">Assign Teacher</Label>
           <Select
             defaultValue={student.teacherId || 'none'}
@@ -161,6 +157,7 @@ const AdminDashboard = () => {
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
   const [teachers, setTeachers] = useState<User[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     setStudents(allStudents);
@@ -204,6 +201,13 @@ const AdminDashboard = () => {
       allStudents[studentIndex].teacherId = teacherId;
     }
     setStudents([...allStudents]);
+  };
+
+  const handleCardClick = (studentId: string, e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('[data-no-navigate="true"]')) {
+      return;
+    }
+    router.push(`/student/${studentId}`);
   };
   
   const instruments = students.reduce((acc, student) => {
@@ -270,14 +274,18 @@ const AdminDashboard = () => {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {students.map((student) => (
-              <Link href={`/student/${student.id}`} key={student.id} className="flex">
+              <div
+                onClick={(e) => handleCardClick(student.id, e)}
+                key={student.id}
+                className="flex cursor-pointer"
+              >
                 <StudentCard
                   student={student}
                   onDelete={handleDeleteStudent}
                   teachers={teachers}
                   onAssignTeacher={handleAssignTeacher}
                 />
-              </Link>
+              </div>
             ))}
         </div>
       </div>
@@ -291,6 +299,7 @@ const TeacherDashboard = () => {
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const userEmail = localStorage.getItem('userEmail');
@@ -328,6 +337,13 @@ const TeacherDashboard = () => {
       allStudents.splice(index, 1);
     }
     setStudents(prev => prev.filter(student => student.id !== studentId));
+  };
+
+  const handleCardClick = (studentId: string, e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('[data-no-navigate="true"]')) {
+      return;
+    }
+    router.push(`/student/${studentId}`);
   };
   
   const instruments = students.reduce((acc, student) => {
@@ -395,9 +411,13 @@ const TeacherDashboard = () => {
         {students.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {students.map((student) => (
-               <Link href={`/student/${student.id}`} key={student.id} className="flex">
-                  <StudentCard student={student} onDelete={handleDeleteStudent} />
-               </Link>
+              <div
+                onClick={(e) => handleCardClick(student.id, e)}
+                key={student.id}
+                className="flex cursor-pointer"
+              >
+                <StudentCard student={student} onDelete={handleDeleteStudent} />
+              </div>
             ))}
           </div>
         ) : (
