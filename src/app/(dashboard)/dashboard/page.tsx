@@ -14,7 +14,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Student, User } from '@/lib/types';
-import { allStudents, allTeachers } from '@/lib/data';
+import { allStudents as initialStudents, allTeachers } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Users, Calendar, Music, PlusCircle, Trash2, Loader2 } from 'lucide-react';
 import {
@@ -151,8 +151,7 @@ const StudentCard = ({
 );
 
 
-const AdminDashboard = () => {
-  const [students, setStudents] = useState<Student[]>(allStudents);
+const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[]; updateStudents: (students: Student[]) => void; }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
@@ -160,7 +159,6 @@ const AdminDashboard = () => {
   const router = useRouter();
 
   useEffect(() => {
-    setStudents(allStudents);
     const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
     const uniqueTeachers = [
       ...allTeachers,
@@ -180,34 +178,25 @@ const AdminDashboard = () => {
       aiHint: 'person student',
       progressHistory: [],
     };
-    allStudents.push(newStudent);
-    setStudents([...allStudents]);
+    updateStudents([...allStudents, newStudent]);
     setNewStudentName('');
     setNewStudentInstrument('Piano');
     setIsDialogOpen(false);
   };
   
   const handleDeleteStudent = (studentId: string) => {
-    const index = allStudents.findIndex(s => s.id === studentId);
-    if (index > -1) {
-      allStudents.splice(index, 1);
-    }
-    setStudents([...allStudents]);
+    updateStudents(allStudents.filter(s => s.id !== studentId));
   };
 
   const handleAssignTeacher = (studentId: string, teacherId: string | null) => {
-    const studentIndex = allStudents.findIndex(s => s.id === studentId);
-    if (studentIndex !== -1) {
-      allStudents[studentIndex].teacherId = teacherId;
-    }
-    setStudents([...allStudents]);
+    updateStudents(allStudents.map(s => s.id === studentId ? { ...s, teacherId: teacherId } : s));
   };
 
   const handleCardClick = (studentId: string) => {
     router.push(`/student/${studentId}`);
   };
   
-  const instruments = students.reduce((acc, student) => {
+  const instruments = allStudents.reduce((acc, student) => {
     if (!acc.includes(student.instrument)) {
       acc.push(student.instrument);
     }
@@ -217,7 +206,7 @@ const AdminDashboard = () => {
   return (
     <>
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Total Students" value={students.length.toString()} icon={<Users className="h-4 w-4 text-muted-foreground" />} />
+        <StatCard title="Total Students" value={allStudents.length.toString()} icon={<Users className="h-4 w-4 text-muted-foreground" />} />
         <StatCard title="Upcoming Lessons" value="3" icon={<Calendar className="h-4 w-4 text-muted-foreground" />} />
         <StatCard title="Instruments" value={instruments.length.toString()} icon={<Music className="h-4 w-4 text-muted-foreground" />} />
       </div>
@@ -270,7 +259,7 @@ const AdminDashboard = () => {
             </Dialog>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {students.map((student) => (
+            {allStudents.map((student) => (
               <div
                 onClick={() => handleCardClick(student.id)}
                 key={student.id}
@@ -290,7 +279,7 @@ const AdminDashboard = () => {
   );
 };
 
-const TeacherDashboard = () => {
+const TeacherDashboard = ({ allStudents, updateStudents }: { allStudents: Student[]; updateStudents: (students: Student[]) => void; }) => {
   const [students, setStudents] = useState<Student[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
@@ -304,7 +293,7 @@ const TeacherDashboard = () => {
     if(userEmail) {
       setStudents(allStudents.filter(s => s.teacherId === userEmail));
     }
-  }, []);
+  }, [allStudents, currentUserEmail]);
 
   const handleRegisterStudent = () => {
     if (!newStudentName || !newStudentInstrument || !currentUserEmail) return;
@@ -320,8 +309,7 @@ const TeacherDashboard = () => {
       teacherId: currentUserEmail,
     };
     
-    allStudents.push(newStudent);
-    setStudents(prev => [...prev, newStudent]);
+    updateStudents([...allStudents, newStudent]);
 
     setNewStudentName('');
     setNewStudentInstrument('Piano');
@@ -329,11 +317,7 @@ const TeacherDashboard = () => {
   };
   
   const handleDeleteStudent = (studentId: string) => {
-    const index = allStudents.findIndex(s => s.id === studentId);
-    if (index > -1) {
-      allStudents.splice(index, 1);
-    }
-    setStudents(prev => prev.filter(student => student.id !== studentId));
+    updateStudents(allStudents.filter(student => student.id !== studentId));
   };
 
   const handleCardClick = (studentId: string) => {
@@ -433,13 +417,29 @@ const TeacherDashboard = () => {
 
 export default function DashboardPage() {
   const [role, setRole] = useState<string | null>(null);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     const userRole = localStorage.getItem('userRole');
     setRole(userRole);
+
+    const storedStudents = localStorage.getItem('students');
+    if (storedStudents) {
+      setAllStudents(JSON.parse(storedStudents));
+    } else {
+      setAllStudents(initialStudents);
+      localStorage.setItem('students', JSON.stringify(initialStudents));
+    }
   }, []);
 
-  if (!role) {
+  const updateStudents = (newStudents: Student[]) => {
+    setAllStudents(newStudents);
+    localStorage.setItem('students', JSON.stringify(newStudents));
+  };
+
+  if (!isClient) {
     return (
       <div className="flex items-center justify-center h-full min-h-[50vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -456,7 +456,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold font-headline">{getDashboardTitle()}</h1>
-      {role === 'admin' ? <AdminDashboard /> : <TeacherDashboard />}
+      {role === 'admin' ? <AdminDashboard allStudents={allStudents} updateStudents={updateStudents} /> : <TeacherDashboard allStudents={allStudents} updateStudents={updateStudents} />}
     </div>
   );
 }

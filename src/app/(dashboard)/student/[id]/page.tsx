@@ -44,13 +44,14 @@ export default function StudentDetailPage() {
   const { toast } = useToast();
   const studentId = params.id as string;
 
-  // We use state to manage student data to simulate updates without a real backend.
   const [student, setStudent] = useState<Student | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // In a real app, you'd fetch this data. Here, we find it from our mock data.
-    const foundStudent = initialStudents.find((s) => s.id === studentId);
+    const storedStudents = localStorage.getItem('students');
+    const students: Student[] = storedStudents ? JSON.parse(storedStudents) : initialStudents;
+    const foundStudent = students.find((s) => s.id === studentId);
     if (foundStudent) {
       setStudent(JSON.parse(JSON.stringify(foundStudent))); // Deep copy to avoid direct mutation
     }
@@ -94,11 +95,14 @@ export default function StudentDetailPage() {
         progressHistory: [...prevStudent.progressHistory, newHistoryEntry],
       };
 
-      // This is a temporary solution for the prototype to persist data across navigation.
-      // In a real app, this would be an API call to your backend.
-      const studentIndex = initialStudents.findIndex((s) => s.id === studentId);
-      if (studentIndex !== -1) {
-        initialStudents[studentIndex] = updatedStudent;
+      const storedStudents = localStorage.getItem('students');
+      if (storedStudents) {
+        const students: Student[] = JSON.parse(storedStudents);
+        const studentIndex = students.findIndex((s) => s.id === studentId);
+        if (studentIndex !== -1) {
+          students[studentIndex] = updatedStudent;
+          localStorage.setItem('students', JSON.stringify(students));
+        }
       }
 
       return updatedStudent;
@@ -108,7 +112,10 @@ export default function StudentDetailPage() {
       title: 'Success!',
       description: `Progress for ${student?.name} has been updated.`,
     });
-    form.reset();
+    form.reset({
+        progress: values.progress,
+        notes: '',
+      });
     setIsLoading(false);
   }
 
