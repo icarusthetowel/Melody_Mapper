@@ -80,7 +80,7 @@ const StudentCard = ({
 }) => (
   <Card className="flex flex-col w-full hover:shadow-lg transition-shadow duration-200 relative group h-full">
     {onDelete && (
-      <div data-no-navigate="true">
+      <div onClick={(e) => e.stopPropagation()}>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
@@ -128,7 +128,7 @@ const StudentCard = ({
     </CardContent>
     {onAssignTeacher && teachers && (
       <CardFooter>
-        <div className="w-full" data-no-navigate="true">
+        <div className="w-full" onClick={(e) => e.stopPropagation()}>
           <Label htmlFor={`teacher-select-${student.id}`} className="text-xs text-muted-foreground">Assign Teacher</Label>
           <Select
             defaultValue={student.teacherId || 'none'}
@@ -203,10 +203,7 @@ const AdminDashboard = () => {
     setStudents([...allStudents]);
   };
 
-  const handleCardClick = (studentId: string, e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('[data-no-navigate="true"]')) {
-      return;
-    }
+  const handleCardClick = (studentId: string) => {
     router.push(`/student/${studentId}`);
   };
   
@@ -275,7 +272,7 @@ const AdminDashboard = () => {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {students.map((student) => (
               <div
-                onClick={(e) => handleCardClick(student.id, e)}
+                onClick={() => handleCardClick(student.id)}
                 key={student.id}
                 className="flex cursor-pointer"
               >
@@ -339,10 +336,7 @@ const TeacherDashboard = () => {
     setStudents(prev => prev.filter(student => student.id !== studentId));
   };
 
-  const handleCardClick = (studentId: string, e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('[data-no-navigate="true"]')) {
-      return;
-    }
+  const handleCardClick = (studentId: string) => {
     router.push(`/student/${studentId}`);
   };
   
@@ -412,7 +406,7 @@ const TeacherDashboard = () => {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {students.map((student) => (
               <div
-                onClick={(e) => handleCardClick(student.id, e)}
+                onClick={() => handleCardClick(student.id)}
                 key={student.id}
                 className="flex cursor-pointer"
               >
