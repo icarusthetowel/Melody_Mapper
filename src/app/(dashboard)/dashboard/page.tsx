@@ -85,7 +85,10 @@ const StudentCard = ({
             variant="destructive"
             size="icon"
             className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
           >
             <Trash2 className="h-4 w-4" />
             <span className="sr-only">Delete {student.name}</span>
@@ -126,7 +129,10 @@ const StudentCard = ({
     </CardContent>
     {onAssignTeacher && teachers && (
       <CardFooter>
-        <div className="w-full" onClick={(e) => e.stopPropagation()}>
+        <div className="w-full" onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}>
           <Label htmlFor={`teacher-select-${student.id}`} className="text-xs text-muted-foreground">Assign Teacher</Label>
           <Select
             defaultValue={student.teacherId || 'none'}
