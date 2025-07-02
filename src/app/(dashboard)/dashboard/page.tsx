@@ -1,7 +1,7 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Card,
@@ -151,7 +151,7 @@ const StudentCard = ({
 );
 
 
-const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[]; updateStudents: (students: Student[]) => void; }) => {
+const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[]; updateStudents: React.Dispatch<React.SetStateAction<Student[]>>; }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
@@ -178,18 +178,18 @@ const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[
       aiHint: 'person student',
       progressHistory: [],
     };
-    updateStudents([...allStudents, newStudent]);
+    updateStudents(prevStudents => [...prevStudents, newStudent]);
     setNewStudentName('');
     setNewStudentInstrument('Piano');
     setIsDialogOpen(false);
   };
   
   const handleDeleteStudent = (studentId: string) => {
-    updateStudents(allStudents.filter(s => s.id !== studentId));
+    updateStudents(prevStudents => prevStudents.filter(s => s.id !== studentId));
   };
 
   const handleAssignTeacher = (studentId: string, teacherId: string | null) => {
-    updateStudents(allStudents.map(s => s.id === studentId ? { ...s, teacherId: teacherId } : s));
+    updateStudents(prevStudents => prevStudents.map(s => s.id === studentId ? { ...s, teacherId: teacherId } : s));
   };
 
   const handleCardClick = (studentId: string) => {
@@ -279,7 +279,7 @@ const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[
   );
 };
 
-const TeacherDashboard = ({ allStudents, updateStudents }: { allStudents: Student[]; updateStudents: (students: Student[]) => void; }) => {
+const TeacherDashboard = ({ allStudents, updateStudents }: { allStudents: Student[]; updateStudents: React.Dispatch<React.SetStateAction<Student[]>>; }) => {
   const [students, setStudents] = useState<Student[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
@@ -309,7 +309,7 @@ const TeacherDashboard = ({ allStudents, updateStudents }: { allStudents: Studen
       teacherId: currentUserEmail,
     };
     
-    updateStudents([...allStudents, newStudent]);
+    updateStudents(prevStudents => [...prevStudents, newStudent]);
 
     setNewStudentName('');
     setNewStudentInstrument('Piano');
@@ -317,7 +317,7 @@ const TeacherDashboard = ({ allStudents, updateStudents }: { allStudents: Studen
   };
   
   const handleDeleteStudent = (studentId: string) => {
-    updateStudents(allStudents.filter(student => student.id !== studentId));
+    updateStudents(prevStudents => prevStudents.filter(student => student.id !== studentId));
   };
 
   const handleCardClick = (studentId: string) => {
@@ -425,19 +425,24 @@ export default function DashboardPage() {
     const userRole = localStorage.getItem('userRole');
     setRole(userRole);
 
-    const storedStudents = localStorage.getItem('students');
-    if (storedStudents) {
-      setAllStudents(JSON.parse(storedStudents));
-    } else {
-      setAllStudents(initialStudents);
-      localStorage.setItem('students', JSON.stringify(initialStudents));
+    try {
+        const storedStudents = localStorage.getItem('students');
+        if (storedStudents) {
+          setAllStudents(JSON.parse(storedStudents));
+        } else {
+          setAllStudents(initialStudents);
+        }
+    } catch (e) {
+        console.error("Could not parse students from localStorage", e)
+        setAllStudents(initialStudents);
     }
   }, []);
 
-  const updateStudents = (newStudents: Student[]) => {
-    setAllStudents(newStudents);
-    localStorage.setItem('students', JSON.stringify(newStudents));
-  };
+  useEffect(() => {
+    if (isClient) {
+        localStorage.setItem('students', JSON.stringify(allStudents));
+    }
+  }, [allStudents, isClient]);
 
   if (!isClient) {
     return (
@@ -456,7 +461,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold font-headline">{getDashboardTitle()}</h1>
-      {role === 'admin' ? <AdminDashboard allStudents={allStudents} updateStudents={updateStudents} /> : <TeacherDashboard allStudents={allStudents} updateStudents={updateStudents} />}
+      {role === 'admin' ? <AdminDashboard allStudents={allStudents} updateStudents={setAllStudents} /> : <TeacherDashboard allStudents={allStudents} updateStudents={setAllStudents} />}
     </div>
   );
 }
