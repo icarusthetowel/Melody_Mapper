@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { add, format } from 'date-fns';
+import { add, format, set } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Card,
@@ -45,9 +45,10 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Trash2 } from 'lucide-react';
-import { allStudents } from '@/lib/data';
+import { PlusCircle, Trash2, Edit } from 'lucide-react';
+import { allStudents as initialStudents } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Helper to compare dates by ignoring time
 const isSameDay = (dateA: Date, dateB: Date) => {
@@ -57,14 +58,21 @@ const isSameDay = (dateA: Date, dateB: Date) => {
 export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [role, setRole] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newLessonStudentId, setNewLessonStudentId] = useState('');
-  const [newLessonTime, setNewLessonTime] = useState('09:00');
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [lessonToDelete, setLessonToDelete] = useState<Lesson | null>(null);
+  
+  // Form state
+  const [lessonStudentId, setLessonStudentId] = useState('');
+  const [lessonStartTime, setLessonStartTime] = useState('09:00');
+  const [lessonEndTime, setLessonEndTime] = useState('10:00');
+  const [lessonRecurrence, setLessonRecurrence] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -72,25 +80,26 @@ export default function SchedulePage() {
     setRole(userRole);
 
     try {
+      const storedStudents = localStorage.getItem('students');
+      setAllStudents(storedStudents ? JSON.parse(storedStudents) : initialStudents);
+
       const storedLessons = localStorage.getItem('lessons');
       if (storedLessons) {
-        // Re-hydrate dates from ISO strings
         const parsedLessons = JSON.parse(storedLessons).map((l: any) => ({
           ...l,
           date: new Date(l.date),
         }));
         setLessons(parsedLessons);
       } else {
-        // Set initial lessons if none in storage
-        const initialLessons = [
-          { id: '1', studentId: '1', date: add(new Date(), { days: 0 }), time: '15:00' },
-          { id: '2', studentId: '2', date: add(new Date(), { days: 1 }), time: '11:00' },
-          { id: '3', studentId: '3', date: add(new Date(), { days: 3 }), time: '14:00' },
+        const initialLessons: Lesson[] = [
+          { id: '1', studentId: '1', date: add(new Date(), { days: 0 }), startTime: '15:00', endTime: '16:00' },
+          { id: '2', studentId: '2', date: add(new Date(), { days: 1 }), startTime: '11:00', endTime: '11:30' },
+          { id: '3', studentId: '3', date: add(new Date(), { days: 3 }), startTime: '14:00', endTime: '15:00' },
         ];
         setLessons(initialLessons);
       }
     } catch (error) {
-      console.error('Failed to parse lessons from localStorage', error);
+      console.error('Failed to parse data from localStorage', error);
     }
   }, []);
 
@@ -103,48 +112,94 @@ export default function SchedulePage() {
   const lessonsForSelectedDay = useMemo(() => {
     return lessons
       .filter((lesson) => isSameDay(lesson.date, selectedDate))
-      .sort((a, b) => a.time.localeCompare(b.time));
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }, [lessons, selectedDate]);
 
   const getStudentById = (id: string): Student | undefined => {
     return allStudents.find((s) => s.id === id);
   };
+
+  const resetForm = () => {
+    setLessonStudentId('');
+    setLessonStartTime('09:00');
+    setLessonEndTime('10:00');
+    setLessonRecurrence(false);
+  }
   
-  const handleAddLesson = () => {
-    if (!newLessonStudentId || !newLessonTime) {
+  const handleOpenAddDialog = () => {
+    resetForm();
+    setEditingLesson(null);
+    setIsDialogOpen(true);
+  }
+
+  const handleOpenEditDialog = (lesson: Lesson) => {
+    setEditingLesson(lesson);
+    setLessonStudentId(lesson.studentId);
+    setLessonStartTime(lesson.startTime);
+    setLessonEndTime(lesson.endTime);
+    setIsDialogOpen(true);
+  }
+
+  const handleLessonSubmit = () => {
+    if (!lessonStudentId || !lessonStartTime || !lessonEndTime) {
        toast({
         title: 'Error',
-        description: 'Please select a student and enter a time.',
+        description: 'Please fill out all fields.',
         variant: 'destructive',
       });
       return;
     }
     
-    const newLesson: Lesson = {
-      id: new Date().toISOString(),
-      studentId: newLessonStudentId,
-      date: selectedDate,
-      time: newLessonTime,
-    };
+    if (editingLesson) { // Handle Update
+      setLessons(prev => prev.map(l => l.id === editingLesson.id ? { ...l, studentId: lessonStudentId, startTime: lessonStartTime, endTime: lessonEndTime } : l));
+      toast({ title: 'Success!', description: 'Lesson has been updated.' });
+    } else { // Handle Add
+      const lessonDate = selectedDate;
+      if (lessonRecurrence) {
+        const seriesId = new Date().toISOString();
+        const newRecurringLessons: Lesson[] = [];
+        for (let i = 0; i < 4; i++) {
+          newRecurringLessons.push({
+            id: `${seriesId}-${i}`,
+            studentId: lessonStudentId,
+            date: add(lessonDate, { weeks: i }),
+            startTime: lessonStartTime,
+            endTime: lessonEndTime,
+            seriesId,
+          });
+        }
+        setLessons(prev => [...prev, ...newRecurringLessons]);
+        toast({ title: 'Success!', description: 'Recurring lessons have been added.'});
+      } else {
+        const newLesson: Lesson = {
+          id: new Date().toISOString(),
+          studentId: lessonStudentId,
+          date: lessonDate,
+          startTime: lessonStartTime,
+          endTime: lessonEndTime,
+        };
+        setLessons(prev => [...prev, newLesson]);
+        toast({ title: 'Success!', description: 'Lesson has been added.'});
+      }
+    }
     
-    setLessons(prev => [...prev, newLesson]);
-    toast({
-      title: 'Success!',
-      description: 'Lesson has been added to the schedule.',
-    });
-    
-    // Reset form
-    setNewLessonStudentId('');
-    setNewLessonTime('09:00');
     setIsDialogOpen(false);
+    setEditingLesson(null);
   };
   
-  const handleRemoveLesson = (lessonId: string) => {
-    setLessons(prev => prev.filter(l => l.id !== lessonId));
+  const handleRemoveLesson = (scope: 'one' | 'all') => {
+    if (!lessonToDelete) return;
+
+    if (scope === 'all' && lessonToDelete.seriesId) {
+        setLessons(prev => prev.filter(l => l.seriesId !== lessonToDelete.seriesId));
+    } else {
+        setLessons(prev => prev.filter(l => l.id !== lessonToDelete.id));
+    }
      toast({
       title: 'Success!',
       description: 'Lesson has been removed.',
     });
+    setLessonToDelete(null);
   };
 
   if (!isClient) {
@@ -188,6 +243,54 @@ export default function SchedulePage() {
     );
   }
 
+  const LessonFormDialog = (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>{editingLesson ? 'Edit Lesson' : 'Add a New Lesson'}</DialogTitle>
+          <DialogDescription>
+          Schedule a lesson for {format(editingLesson ? editingLesson.date : selectedDate, 'MMMM d, yyyy')}.
+        </DialogDescription>
+      </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="student" className="text-right">Student</Label>
+              <Select onValueChange={setLessonStudentId} value={lessonStudentId}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a student" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allStudents.map(student => (
+                    <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+          </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="startTime" className="text-right">Start Time</Label>
+              <Input id="startTime" type="time" value={lessonStartTime} onChange={e => setLessonStartTime(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="endTime" className="text-right">End Time</Label>
+              <Input id="endTime" type="time" value={lessonEndTime} onChange={e => setLessonEndTime(e.target.value)} className="col-span-3" />
+            </div>
+            {!editingLesson && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="recurrence" className="text-right">Repeat</Label>
+                <div className="col-span-3 flex items-center space-x-2">
+                  <Checkbox id="recurrence" checked={lessonRecurrence} onCheckedChange={(checked) => setLessonRecurrence(!!checked)} />
+                  <label htmlFor="recurrence" className="text-sm font-medium leading-none">
+                    Weekly for 4 weeks
+                  </label>
+                </div>
+              </div>
+            )}
+        </div>
+        <DialogFooter>
+          <Button onClick={handleLessonSubmit}>{editingLesson ? 'Save Changes' : 'Save Lesson'}</Button>
+        </DialogFooter>
+    </DialogContent>
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold font-headline">Schedule</h1>
@@ -197,7 +300,7 @@ export default function SchedulePage() {
             <CardHeader>
               <CardTitle>Lesson Calendar</CardTitle>
               <CardDescription>
-                View your scheduled lessons at a glance. Select a day to see details.
+                View your scheduled lessons. Select a day to see details and manage events.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -226,43 +329,14 @@ export default function SchedulePage() {
                 </CardTitle>
               </div>
               {role === 'admin' && (
-                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                 <Dialog open={isDialogOpen} onOpenChange={(isOpen) => { setIsDialogOpen(isOpen); if (!isOpen) setEditingLesson(null); }}>
                     <DialogTrigger asChild>
-                      <Button size="sm">
+                      <Button size="sm" onClick={handleOpenAddDialog}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Lesson
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add a new lesson</DialogTitle>
-                         <DialogDescription>
-                          Schedule a new lesson for {format(selectedDate, 'MMMM d, yyyy')}.
-                        </DialogDescription>
-                      </DialogHeader>
-                       <div className="grid gap-4 py-4">
-                          <div className="grid grid-cols-4 items-center gap-4">
-                             <Label htmlFor="student" className="text-right">Student</Label>
-                             <Select onValueChange={setNewLessonStudentId} value={newLessonStudentId}>
-                                <SelectTrigger className="col-span-3">
-                                  <SelectValue placeholder="Select a student" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {allStudents.map(student => (
-                                    <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                          </div>
-                           <div className="grid grid-cols-4 items-center gap-4">
-                             <Label htmlFor="time" className="text-right">Time</Label>
-                              <Input id="time" type="time" value={newLessonTime} onChange={e => setNewLessonTime(e.target.value)} className="col-span-3" />
-                           </div>
-                       </div>
-                       <DialogFooter>
-                          <Button onClick={handleAddLesson}>Save Lesson</Button>
-                       </DialogFooter>
-                    </DialogContent>
+                    {LessonFormDialog}
                   </Dialog>
               )}
             </CardHeader>
@@ -292,31 +366,43 @@ export default function SchedulePage() {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium">
-                              {lesson.time}
+                              {lesson.startTime} - {lesson.endTime}
                             </p>
                           </div>
                            {role === 'admin' && (
-                             <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                 <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will permanently delete the lesson for {student.name} at {lesson.time}.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleRemoveLesson(lesson.id)}>
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(lesson)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog onOpenChange={(isOpen) => !isOpen && setLessonToDelete(null)}>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLessonToDelete(lesson)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                       {lessonToDelete?.seriesId
+                                          ? "This is a recurring lesson. Delete only this instance or the entire series?"
+                                          : `This will permanently delete the lesson for ${getStudentById(lessonToDelete?.studentId || '')?.name} at ${lessonToDelete?.startTime}.`}
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                     {lessonToDelete?.seriesId && (
+                                      <AlertDialogAction onClick={() => handleRemoveLesson('all')}>
+                                        Delete Series
+                                      </AlertDialogAction>
+                                    )}
+                                    <AlertDialogAction onClick={() => handleRemoveLesson('one')}>
+                                      {lessonToDelete?.seriesId ? 'Delete This Instance' : 'Delete'}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                            )}
                        </div>
                     );

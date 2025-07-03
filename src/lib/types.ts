@@ -25,8 +25,10 @@ export interface Student {
 }
 
 export interface Lesson {
-  id: string;
+  id:string;
   studentId: string;
   date: Date;
-  time: string;
+  startTime: string;
+  endTime: string;
+  seriesId?: string; // Used to link recurring lessons
 }
