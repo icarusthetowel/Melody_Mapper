@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only read and write their own user document.
+    match /users/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+    }
+
+    // Lessons can be managed by any authenticated user.
+    // In a real production app, you'd restrict this to admins or involved teachers.
+    match /lessons/{lessonId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Students can be managed by any authenticated user.
+    // The app's logic filters which students are visible,
+    // but for a real production app, you'd add more specific rules here.
+    // For example: allow read: if resource.data.teacherId == request.auth.token.email;
+    match /students/{studentId} {
+       allow read, write: if request.auth != null;
+    }
+  }
+}
