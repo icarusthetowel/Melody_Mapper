@@ -6,7 +6,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { allStudents as initialStudents } from '@/lib/data';
 import type { Student, ProgressLog } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -57,9 +56,8 @@ export default function StudentDetailPage() {
 
     try {
       const storedStudents = localStorage.getItem('students');
-      const students: Student[] = storedStudents
-        ? JSON.parse(storedStudents)
-        : initialStudents;
+      // ONLY use local storage. If it's empty, students is an empty array.
+      const students: Student[] = storedStudents ? JSON.parse(storedStudents) : [];
       const foundStudent = students.find((s) => s.id === studentId);
 
       if (foundStudent) {
@@ -93,50 +91,54 @@ export default function StudentDetailPage() {
   }, [student, form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (form.formState.isSubmitting) return;
+    if (form.formState.isSubmitting || !student) return;
+    
+    const newHistoryEntry: ProgressLog = {
+      date: new Date().toISOString(),
+      notes: values.notes,
+      progress: values.progress,
+    };
 
-    setStudent((prevStudent) => {
-      if (!prevStudent) return null;
+    // Create the updated student object
+    const updatedStudent: Student = {
+      ...student,
+      progress: values.progress,
+      // Safely initialize progressHistory if it's missing
+      progressHistory: [...(student.progressHistory || []), newHistoryEntry],
+    };
 
-      const newHistoryEntry: ProgressLog = {
-        date: new Date().toISOString(),
-        notes: values.notes,
-        progress: values.progress,
-      };
+    // Update state immediately for a responsive UI
+    setStudent(updatedStudent);
 
-      const updatedStudent = {
-        ...prevStudent,
-        progress: values.progress,
-        progressHistory: [
-          ...(prevStudent.progressHistory || []),
-          newHistoryEntry,
-        ],
-      };
-
-      try {
-        const storedStudents = localStorage.getItem('students');
-        const students: Student[] = storedStudents ? JSON.parse(storedStudents) : [];
-        const studentIndex = students.findIndex((s) => s.id === studentId);
-        if (studentIndex !== -1) {
-          students[studentIndex] = updatedStudent;
-          localStorage.setItem('students', JSON.stringify(students));
-        }
-      } catch (e) {
-        console.error("Failed to update student in localStorage", e);
+    // Persist the change to localStorage
+    try {
+      const storedStudents = localStorage.getItem('students');
+      const students: Student[] = storedStudents ? JSON.parse(storedStudents) : [];
+      const studentIndex = students.findIndex((s) => s.id === studentId);
+      
+      if (studentIndex !== -1) {
+        students[studentIndex] = updatedStudent;
+        localStorage.setItem('students', JSON.stringify(students));
         toast({
+          title: 'Success!',
+          description: `Progress for ${student.name} has been updated.`,
+        });
+      } else {
+         toast({
           title: 'Error Saving',
-          description: 'Could not save progress due to a storage issue.',
+          description: 'Could not find student in storage to update.',
           variant: 'destructive',
         });
       }
-
-      return updatedStudent;
-    });
-
-    toast({
-      title: 'Success!',
-      description: `Progress for ${student?.name} has been updated.`,
-    });
+    } catch (e) {
+      console.error("Failed to update student in localStorage", e);
+      toast({
+        title: 'Error Saving',
+        description: 'Could not save progress due to a storage issue.',
+        variant: 'destructive',
+      });
+    }
+    
     form.reset({
       progress: values.progress,
       notes: '',
@@ -167,7 +169,6 @@ export default function StudentDetailPage() {
   }
 
   if (!student) {
-    // This case is unlikely if error handling is working, but it's a good fallback.
     return (
        <div className="flex items-center justify-center h-full min-h-[50vh]">
          <p>Student data could not be loaded.</p>
