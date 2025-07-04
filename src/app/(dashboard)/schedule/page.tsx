@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { add, format, set } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -46,9 +46,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlusCircle, Trash2, Edit } from 'lucide-react';
-import { allStudents as initialStudents } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useStudents } from '@/contexts/StudentsContext';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, Timestamp, writeBatch, query, where } from 'firebase/firestore';
+
 
 // Helper to compare dates by ignoring time
 const isSameDay = (dateA: Date, dateB: Date) => {
@@ -58,9 +61,8 @@ const isSameDay = (dateA: Date, dateB: Date) => {
 export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [allStudents, setAllStudents] = useState<Student[]>([]);
-  const [isClient, setIsClient] = useState(false);
-  const [role, setRole] = useState<string | null>(null);
+  const { students: allStudents, currentUser } = useStudents();
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   // Dialog state
@@ -75,39 +77,27 @@ export default function SchedulePage() {
   const [lessonRecurrence, setLessonRecurrence] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
-    const userRole = localStorage.getItem('userRole');
-    setRole(userRole);
+    setIsLoading(true);
+    const lessonsCollectionRef = collection(db, 'lessons');
+    const unsubscribe = onSnapshot(lessonsCollectionRef, (snapshot) => {
+      const fetchedLessons = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          date: (data.date as Timestamp).toDate(),
+        } as Lesson;
+      });
+      setLessons(fetchedLessons);
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Failed to fetch lessons:", error);
+      toast({ title: "Error", description: "Could not fetch lessons.", variant: "destructive" });
+      setIsLoading(false);
+    });
 
-    try {
-      const storedStudents = localStorage.getItem('students');
-      setAllStudents(storedStudents ? JSON.parse(storedStudents) : initialStudents);
-
-      const storedLessons = localStorage.getItem('lessons');
-      if (storedLessons) {
-        const parsedLessons = JSON.parse(storedLessons).map((l: any) => ({
-          ...l,
-          date: new Date(l.date),
-        }));
-        setLessons(parsedLessons);
-      } else {
-        const initialLessons: Lesson[] = [
-          { id: '1', studentId: '1', date: add(new Date(), { days: 0 }), startTime: '15:00', endTime: '16:00' },
-          { id: '2', studentId: '2', date: add(new Date(), { days: 1 }), startTime: '11:00', endTime: '11:30' },
-          { id: '3', studentId: '3', date: add(new Date(), { days: 3 }), startTime: '14:00', endTime: '15:00' },
-        ];
-        setLessons(initialLessons);
-      }
-    } catch (error) {
-      console.error('Failed to parse data from localStorage', error);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isClient) {
-      localStorage.setItem('lessons', JSON.stringify(lessons));
-    }
-  }, [lessons, isClient]);
+    return () => unsubscribe();
+  }, [toast]);
 
   const lessonsForSelectedDay = useMemo(() => {
     return lessons
@@ -115,9 +105,9 @@ export default function SchedulePage() {
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }, [lessons, selectedDate]);
 
-  const getStudentById = (id: string): Student | undefined => {
+  const getStudentById = useCallback((id: string): Student | undefined => {
     return allStudents.find((s) => s.id === id);
-  };
+  }, [allStudents]);
 
   const resetForm = () => {
     setLessonStudentId('');
@@ -137,10 +127,11 @@ export default function SchedulePage() {
     setLessonStudentId(lesson.studentId);
     setLessonStartTime(lesson.startTime);
     setLessonEndTime(lesson.endTime);
+    setLessonRecurrence(false); // Can't edit recurrence for now
     setIsDialogOpen(true);
   }
 
-  const handleLessonSubmit = () => {
+  const handleLessonSubmit = async () => {
     if (!lessonStudentId || !lessonStartTime || !lessonEndTime) {
        toast({
         title: 'Error',
@@ -151,34 +142,30 @@ export default function SchedulePage() {
     }
     
     if (editingLesson) { // Handle Update
-      setLessons(prev => prev.map(l => l.id === editingLesson.id ? { ...l, studentId: lessonStudentId, startTime: lessonStartTime, endTime: lessonEndTime } : l));
+      const lessonRef = doc(db, 'lessons', editingLesson.id);
+      await updateDoc(lessonRef, { studentId: lessonStudentId, startTime: lessonStartTime, endTime: lessonEndTime });
       toast({ title: 'Success!', description: 'Lesson has been updated.' });
     } else { // Handle Add
       const lessonDate = selectedDate;
+      const lessonData = {
+        studentId: lessonStudentId,
+        date: Timestamp.fromDate(lessonDate),
+        startTime: lessonStartTime,
+        endTime: lessonEndTime,
+      };
+
       if (lessonRecurrence) {
-        const seriesId = new Date().toISOString();
-        const newRecurringLessons: Lesson[] = [];
+        const batch = writeBatch(db);
+        const seriesId = doc(collection(db, 'lessons')).id; // Generate a unique ID for the series
         for (let i = 0; i < 4; i++) {
-          newRecurringLessons.push({
-            id: `${seriesId}-${i}`,
-            studentId: lessonStudentId,
-            date: add(lessonDate, { weeks: i }),
-            startTime: lessonStartTime,
-            endTime: lessonEndTime,
-            seriesId,
-          });
+          const recurringDate = add(lessonDate, { weeks: i });
+          const newLessonRef = doc(collection(db, 'lessons'));
+          batch.set(newLessonRef, { ...lessonData, date: Timestamp.fromDate(recurringDate), seriesId });
         }
-        setLessons(prev => [...prev, ...newRecurringLessons]);
+        await batch.commit();
         toast({ title: 'Success!', description: 'Recurring lessons have been added.'});
       } else {
-        const newLesson: Lesson = {
-          id: new Date().toISOString(),
-          studentId: lessonStudentId,
-          date: lessonDate,
-          startTime: lessonStartTime,
-          endTime: lessonEndTime,
-        };
-        setLessons(prev => [...prev, newLesson]);
+        await addDoc(collection(db, 'lessons'), lessonData);
         toast({ title: 'Success!', description: 'Lesson has been added.'});
       }
     }
@@ -187,13 +174,17 @@ export default function SchedulePage() {
     setEditingLesson(null);
   };
   
-  const handleRemoveLesson = (scope: 'one' | 'all') => {
+  const handleRemoveLesson = async (scope: 'one' | 'all') => {
     if (!lessonToDelete) return;
 
     if (scope === 'all' && lessonToDelete.seriesId) {
-        setLessons(prev => prev.filter(l => l.seriesId !== lessonToDelete.seriesId));
+        const batch = writeBatch(db);
+        const q = query(collection(db, 'lessons'), where('seriesId', '==', lessonToDelete.seriesId));
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
     } else {
-        setLessons(prev => prev.filter(l => l.id !== lessonToDelete.id));
+        await deleteDoc(doc(db, 'lessons', lessonToDelete.id));
     }
      toast({
       title: 'Success!',
@@ -202,7 +193,7 @@ export default function SchedulePage() {
     setLessonToDelete(null);
   };
 
-  if (!isClient) {
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-6">
         <h1 className="text-3xl font-bold font-headline">Schedule</h1>
@@ -328,7 +319,7 @@ export default function SchedulePage() {
                   Lessons for {format(selectedDate, 'MMMM d')}
                 </CardTitle>
               </div>
-              {role === 'admin' && (
+              {currentUser?.role === 'admin' && (
                  <Dialog open={isDialogOpen} onOpenChange={(isOpen) => { setIsDialogOpen(isOpen); if (!isOpen) setEditingLesson(null); }}>
                     <DialogTrigger asChild>
                       <Button size="sm" onClick={handleOpenAddDialog}>
@@ -369,7 +360,7 @@ export default function SchedulePage() {
                               {lesson.startTime} - {lesson.endTime}
                             </p>
                           </div>
-                           {role === 'admin' && (
+                           {currentUser?.role === 'admin' && (
                             <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(lesson)}>
                                 <Edit className="h-4 w-4" />

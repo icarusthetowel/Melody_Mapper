@@ -15,26 +15,30 @@ import { Label } from '@/components/ui/label';
 import { Music2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-
-const ADMIN_EMAIL = 'admin@melody.com';
-const ADMIN_PASSWORD = 'password123';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      localStorage.setItem('userRole', 'admin');
+  const handleLogin = async () => {
+    setIsLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // The auth listener in layout.tsx will handle role check and redirect.
       router.push('/dashboard');
-    } else {
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Invalid email or password.',
+        description: 'Invalid admin credentials.',
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -62,6 +66,7 @@ export default function AdminLoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
               <div className="grid gap-2">
@@ -72,10 +77,11 @@ export default function AdminLoginPage() {
                   required 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
-              <Button onClick={handleLogin} className="w-full">
-                Login
+              <Button onClick={handleLogin} disabled={isLoading} className="w-full">
+                {isLoading ? 'Logging In...' : 'Login'}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">

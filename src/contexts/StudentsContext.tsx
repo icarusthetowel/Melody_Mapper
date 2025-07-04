@@ -1,25 +1,27 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { Student, ProgressLog, Instrument } from '@/lib/types';
-import { allStudents as initialStudents } from '@/lib/data';
+import { createContext, useContext, useState, useEffect, type ReactNode, useCallback } from 'react';
+import type { Student, User } from '@/lib/types';
+import { db } from '@/lib/firebase';
+import { 
+  collection, 
+  onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc,
+  query,
+  where,
+} from 'firebase/firestore';
 
 interface StudentsContextType {
   students: Student[];
-  addStudent: (newStudentData: Omit<Student, 'id' | 'progressHistory'>) => void;
-  updateStudent: (updatedStudent: Student) => void;
-  deleteStudent: (studentId: string) => void;
-  assignTeacher: (studentId: string, teacherId: string | null) => void;
+  addStudent: (newStudentData: Omit<Student, 'id' | 'progressHistory'>) => Promise<void>;
+  updateStudent: (updatedStudent: Student) => Promise<void>;
+  deleteStudent: (studentId: string) => Promise<void>;
+  assignTeacher: (studentId: string, teacherId: string | null) => Promise<void>;
   getStudentById: (studentId: string) => Student | undefined;
-}
-
-type NewStudentData = {
-  name: string;
-  instrument: Instrument;
-  progress: number;
-  avatarUrl: string;
-  aiHint: string;
-  teacherId: string | null;
+  currentUser: User | null;
 }
 
 const StudentsContext = createContext<StudentsContextType | undefined>(undefined);
@@ -32,35 +34,39 @@ export function useStudents() {
   return context;
 }
 
-export function StudentsProvider({ children }: { children: ReactNode }) {
+export function StudentsProvider({ children, currentUser }: { children: ReactNode, currentUser: User | null }) {
   const [students, setStudents] = useState<Student[]>([]);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    try {
-      const storedStudents = localStorage.getItem('students');
-      if (storedStudents) {
-        setStudents(JSON.parse(storedStudents));
-      } else {
-        setStudents(initialStudents);
-      }
-    } catch (e) {
-      console.error("Could not parse students from localStorage", e);
-      setStudents(initialStudents);
-    }
-    setIsInitialized(true);
-  }, []);
+    if (!currentUser) return;
 
-  useEffect(() => {
-    if (isInitialized) {
-      localStorage.setItem('students', JSON.stringify(students));
-    }
-  }, [students, isInitialized]);
+    const studentsCollectionRef = collection(db, 'students');
+    let q;
 
-  const addStudent = (newStudentData: NewStudentData) => {
-    const newStudent: Student = {
+    if (currentUser.role === 'admin') {
+      // Admin sees all students
+      q = query(studentsCollectionRef);
+    } else {
+      // Teacher sees only their students (or students assigned to their email)
+      q = query(studentsCollectionRef, where('teacherId', '==', currentUser.email));
+    }
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const studentsData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Student[];
+      setStudents(studentsData);
+    }, (error) => {
+        console.error("Error fetching students:", error);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  const addStudent = useCallback(async (newStudentData: Omit<Student, 'id' | 'progressHistory'>) => {
+    const newStudent = {
       ...newStudentData,
-      id: `student-${Date.now()}`,
       progressHistory: [
         {
           date: new Date().toISOString(),
@@ -69,28 +75,30 @@ export function StudentsProvider({ children }: { children: ReactNode }) {
         },
       ],
     };
-    setStudents(prevStudents => [...prevStudents, newStudent]);
-  };
+    await addDoc(collection(db, 'students'), newStudent);
+  }, []);
 
-  const updateStudent = (updatedStudent: Student) => {
-    setStudents(prevStudents => 
-      prevStudents.map(s => s.id === updatedStudent.id ? updatedStudent : s)
-    );
-  };
+  const updateStudent = useCallback(async (updatedStudent: Student) => {
+    const studentRef = doc(db, 'students', updatedStudent.id);
+    const { id, ...dataToUpdate } = updatedStudent;
+    await updateDoc(studentRef, dataToUpdate);
+  }, []);
 
-  const deleteStudent = (studentId: string) => {
-    setStudents(prevStudents => prevStudents.filter(s => s.id !== studentId));
-  };
+  const deleteStudent = useCallback(async (studentId: string) => {
+    const studentRef = doc(db, 'students', studentId);
+    await deleteDoc(studentRef);
+  }, []);
     
-  const assignTeacher = (studentId: string, teacherId: string | null) => {
-    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, teacherId: teacherId } : s));
-  };
+  const assignTeacher = useCallback(async (studentId: string, teacherId: string | null) => {
+    const studentRef = doc(db, 'students', studentId);
+    await updateDoc(studentRef, { teacherId });
+  }, []);
 
-  const getStudentById = (studentId: string) => {
+  const getStudentById = useCallback((studentId: string) => {
     return students.find(s => s.id === studentId);
-  };
+  }, [students]);
 
-  const value = { students, addStudent, updateStudent, deleteStudent, assignTeacher, getStudentById };
+  const value = { students, addStudent, updateStudent, deleteStudent, assignTeacher, getStudentById, currentUser };
 
   return (
     <StudentsContext.Provider value={value}>

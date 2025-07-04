@@ -13,13 +13,21 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
+import { useStudents } from '@/contexts/StudentsContext';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { currentUser } = useStudents();
 
-  const handleLogout = () => {
-    localStorage.removeItem('userRole');
-    router.push('/');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/');
+    } catch (error) {
+      console.error("Logout error", error);
+    }
   };
   
   return (
@@ -36,11 +44,11 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="grid gap-2">
             <Label htmlFor="full-name">Full Name</Label>
-            <Input id="full-name" placeholder="Your Name" defaultValue="Admin User" />
+            <Input id="full-name" placeholder="Your Name" defaultValue={currentUser?.fullName} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="your@email.com" defaultValue="admin@melody.com" />
+            <Input id="email" type="email" placeholder="your@email.com" defaultValue={currentUser?.email} readOnly />
           </div>
           <Button disabled>Update Profile</Button>
         </CardContent>

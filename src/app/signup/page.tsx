@@ -15,6 +15,10 @@ import { Label } from '@/components/ui/label';
 import { Music2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { auth, db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import type { User } from '@/lib/types';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -22,8 +26,9 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!fullName || !email || !password) {
       toast({
         title: 'Error',
@@ -33,24 +38,32 @@ export default function SignupPage() {
       return;
     }
 
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userExists = users.some((user: any) => user.email === email);
+    setIsLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
 
-    if (userExists) {
+      // Firestore doesn't have an Omit type, so we create the object without the uid
+      const newUser = {
+        fullName,
+        email: firebaseUser.email!,
+        role: 'teacher' as const,
+      };
+
+      // Create a document in 'users' collection with the UID as document ID
+      await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+      
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error("Signup error:", error);
       toast({
-        title: 'Error',
-        description: 'An account with this email already exists.',
+        title: 'Signup Failed',
+        description: error.message || 'An unknown error occurred.',
         variant: 'destructive',
       });
-      return;
+    } finally {
+      setIsLoading(false);
     }
-
-    const newUser = { id: new Date().toISOString(), fullName, email, password };
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-    localStorage.setItem('userEmail', email);
-    localStorage.setItem('userRole', 'teacher');
-    router.push('/dashboard');
   };
 
   return (
@@ -78,6 +91,7 @@ export default function SignupPage() {
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
               <div className="grid gap-2">
@@ -89,6 +103,7 @@ export default function SignupPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
               <div className="grid gap-2">
@@ -99,10 +114,11 @@ export default function SignupPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
-              <Button onClick={handleSignup} className="w-full">
-                Create an account
+              <Button onClick={handleSignup} disabled={isLoading} className="w-full">
+                {isLoading ? 'Creating Account...' : 'Create an account'}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">

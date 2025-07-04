@@ -14,7 +14,6 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Student, User } from '@/lib/types';
-import { allTeachers } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Users, Calendar, Music, PlusCircle, Trash2, Loader2 } from 'lucide-react';
 import {
@@ -47,6 +46,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useStudents } from '@/contexts/StudentsContext';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const StatCard = ({
   title,
@@ -141,7 +142,7 @@ const StudentCard = ({
             <SelectContent>
               <SelectItem value="none">None</SelectItem>
               {teachers.map((teacher) => (
-                <SelectItem key={teacher.id} value={teacher.email}>{teacher.email}</SelectItem>
+                <SelectItem key={teacher.uid} value={teacher.email}>{teacher.email}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -160,12 +161,17 @@ const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent 
   const router = useRouter();
 
   useEffect(() => {
-    const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
-    const uniqueTeachers = [
-      ...allTeachers,
-      ...storedUsers.filter((u: User) => !allTeachers.some(t => t.email === u.email))
-    ];
-    setTeachers(uniqueTeachers);
+    const fetchTeachers = async () => {
+      const teachersCollectionRef = collection(db, 'users');
+      const q = query(teachersCollectionRef, where('role', '==', 'teacher'));
+      const querySnapshot = await getDocs(q);
+      const teachersData = querySnapshot.docs.map(doc => ({
+        uid: doc.id,
+        ...doc.data(),
+      })) as User[];
+      setTeachers(teachersData);
+    };
+    fetchTeachers();
   }, []);
 
   const handleRegisterStudent = () => {
@@ -271,21 +277,14 @@ const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent 
   );
 };
 
-const TeacherDashboard = ({ allStudents, addStudent, deleteStudent }: { allStudents: Student[]; addStudent: (data: any) => void; deleteStudent: (studentId: string) => void; }) => {
-  const [students, setStudents] = useState<Student[]>([]);
+const TeacherDashboard = ({ allStudents, addStudent, deleteStudent, currentUserEmail }: { allStudents: Student[]; addStudent: (data: any) => void; deleteStudent: (studentId: string) => void; currentUserEmail: string | null; }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
-  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const userEmail = localStorage.getItem('userEmail');
-    setCurrentUserEmail(userEmail);
-    if(userEmail) {
-      setStudents(allStudents.filter(s => s.teacherId === userEmail));
-    }
-  }, [allStudents, currentUserEmail]);
+  // The student list is already filtered by the context provider
+  const students = allStudents;
 
   const handleRegisterStudent = () => {
     if (!newStudentName || !newStudentInstrument || !currentUserEmail) return;
@@ -400,34 +399,20 @@ const TeacherDashboard = ({ allStudents, addStudent, deleteStudent }: { allStude
 
 
 export default function DashboardPage() {
-  const [role, setRole] = useState<string | null>(null);
-  const { students, addStudent, assignTeacher, deleteStudent } = useStudents();
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-    const userRole = localStorage.getItem('userRole');
-    setRole(userRole);
-  }, []);
-
-  if (!isClient || students.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[50vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const { students, addStudent, assignTeacher, deleteStudent, currentUser } = useStudents();
   
   const getDashboardTitle = () => {
-    if (role === 'admin') return 'Admin Dashboard';
-    if (role === 'teacher') return 'Student/Teacher Dashboard';
+    if (currentUser?.role === 'admin') return 'Admin Dashboard';
+    if (currentUser?.role === 'teacher') return 'Student/Teacher Dashboard';
     return 'Dashboard';
   }
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold font-headline">{getDashboardTitle()}</h1>
-      {role === 'admin' ? <AdminDashboard allStudents={students} addStudent={addStudent} assignTeacher={assignTeacher} deleteStudent={deleteStudent} /> : <TeacherDashboard allStudents={students} addStudent={addStudent} deleteStudent={deleteStudent} />}
+      {currentUser?.role === 'admin' ? 
+        <AdminDashboard allStudents={students} addStudent={addStudent} assignTeacher={assignTeacher} deleteStudent={deleteStudent} /> : 
+        <TeacherDashboard allStudents={students} addStudent={addStudent} deleteStudent={deleteStudent} currentUserEmail={currentUser?.email || null} />}
     </div>
   );
 }

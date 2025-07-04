@@ -15,29 +15,30 @@ import { Label } from '@/components/ui/label';
 import { Music2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const foundUser = users.find(
-      (user: any) => user.email === email && user.password === password
-    );
-
-    if (foundUser) {
-      localStorage.setItem('userRole', 'teacher');
-      localStorage.setItem('userEmail', email);
+  const handleLogin = async () => {
+    setIsLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       router.push('/dashboard');
-    } else {
+    } catch (error: any) {
+      console.error('Login error:', error);
       toast({
-        title: 'Error',
+        title: 'Login Failed',
         description: 'Invalid email or password.',
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -67,6 +68,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
               <div className="grid gap-2">
@@ -77,10 +79,11 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
-              <Button onClick={handleLogin} className="w-full">
-                Login
+              <Button onClick={handleLogin} disabled={isLoading} className="w-full">
+                {isLoading ? 'Logging in...' : 'Login'}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">

@@ -13,46 +13,67 @@ import {
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DashboardNav } from '@/components/dashboard-nav';
-import { Music2, LogOut } from 'lucide-react';
+import { Music2, LogOut, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { StudentsProvider } from '@/contexts/StudentsContext';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import type { User } from '@/lib/types';
 
 export default function DashboardLayout({ children }: PropsWithChildren) {
-  const [role, setRole] = useState<string | null>(null);
-  const [user, setUser] = useState<{name: string, email: string} | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const userRole = localStorage.getItem('userRole');
-    if (userRole) {
-      setRole(userRole);
-      if (userRole === 'teacher') {
-          const userEmail = localStorage.getItem('userEmail');
-          const users = JSON.parse(localStorage.getItem('users') || '[]');
-          const foundUser = users.find((u: any) => u.email === userEmail);
-           if(foundUser) {
-             setUser({name: foundUser.fullName, email: foundUser.email});
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        try {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+
+          if (userDoc.exists()) {
+            setCurrentUser({ uid: firebaseUser.uid, ...userDoc.data() } as User);
+          } else {
+            // User exists in Auth but not in Firestore. This is an error state.
+            await signOut(auth);
+            router.push('/');
           }
-      } else if(userRole === 'admin') {
-          setUser({name: 'Admin', email: 'admin@melody.com'});
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          await signOut(auth);
+          router.push('/');
+        }
+      } else {
+        router.push('/');
       }
-    } else {
-      router.push('/');
-    }
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');
-    router.push('/');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/');
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
   
-  const getDisplayName = () => user?.name || 'User';
-  const getEmail = () => user?.email || '';
+  if (isLoading || !currentUser) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <StudentsProvider>
+    <StudentsProvider currentUser={currentUser}>
       <SidebarProvider>
         <Sidebar>
           <SidebarHeader className="p-4">
@@ -73,11 +94,11 @@ export default function DashboardLayout({ children }: PropsWithChildren) {
               <div className="flex items-center gap-3 overflow-hidden">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src="https://placehold.co/100x100.png" alt="@user" data-ai-hint="person smiling" />
-                  <AvatarFallback>{getDisplayName().charAt(0)}</AvatarFallback>
+                  <AvatarFallback>{currentUser.fullName.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 overflow-hidden">
-                  <p className="font-semibold truncate">{getDisplayName()}</p>
-                  <p className="text-sm text-muted-foreground truncate">{getEmail()}</p>
+                  <p className="font-semibold truncate">{currentUser.fullName}</p>
+                  <p className="text-sm text-muted-foreground truncate">{currentUser.email}</p>
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={handleLogout} className="flex-shrink-0">

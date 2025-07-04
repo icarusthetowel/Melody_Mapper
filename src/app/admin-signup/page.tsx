@@ -15,24 +15,60 @@ import { Label } from '@/components/ui/label';
 import { Music2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 
 const ADMIN_CODE = 'ADMIN123';
 
 export default function AdminSignupPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignup = () => {
-    if (code === ADMIN_CODE) {
-      localStorage.setItem('userRole', 'admin');
-      router.push('/dashboard');
-    } else {
+  const handleSignup = async () => {
+    if (code !== ADMIN_CODE) {
       toast({
         title: 'Error',
         description: 'Invalid admin code.',
         variant: 'destructive',
       });
+      return;
+    }
+    if (!fullName || !email || !password) {
+      toast({
+        title: 'Error',
+        description: 'All fields are required.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+
+      const newUser = {
+        fullName,
+        email: firebaseUser.email!,
+        role: 'admin' as const,
+      };
+
+      await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({
+        title: 'Signup Failed',
+        description: error.message || 'An unknown error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -53,7 +89,14 @@ export default function AdminSignupPage() {
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="full-name">Full Name</Label>
-                <Input id="full-name" placeholder="Admin User" required />
+                <Input 
+                  id="full-name" 
+                  placeholder="Admin User" 
+                  required 
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
@@ -62,11 +105,21 @@ export default function AdminSignupPage() {
                   type="email"
                   placeholder="admin@example.com"
                   required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" required />
+                <Input 
+                  id="password" 
+                  type="password" 
+                  required 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
                <div className="grid gap-2">
                 <Label htmlFor="admin-code">Admin Code</Label>
@@ -76,10 +129,11 @@ export default function AdminSignupPage() {
                   required 
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
-              <Button onClick={handleSignup} className="w-full">
-                Create an account
+              <Button onClick={handleSignup} disabled={isLoading} className="w-full">
+                {isLoading ? 'Creating Account...' : 'Create an account'}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">

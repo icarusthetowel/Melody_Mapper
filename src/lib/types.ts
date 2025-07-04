@@ -7,15 +7,18 @@ export interface ProgressLog {
   progress: number;
 }
 
+export type UserRole = 'admin' | 'teacher';
+
 export interface User {
-  id: string;
+  uid: string; // Firebase Auth UID
   fullName: string;
   email: string;
+  role: UserRole;
 }
 
 export interface Student {
-  id: string;
-  name: string;
+  id: string; // Firestore document ID
+  name:string;
   instrument: Instrument;
   progress: number;
   avatarUrl: string;
@@ -25,9 +28,9 @@ export interface Student {
 }
 
 export interface Lesson {
-  id:string;
+  id: string; // Firestore document ID
   studentId: string;
-  date: Date;
+  date: any; // Stored as Timestamp in Firestore
   startTime: string;
   endTime: string;
   seriesId?: string; // Used to link recurring lessons
