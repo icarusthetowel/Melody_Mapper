@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,7 +29,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, BookOpen, Edit, Loader2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Edit, Loader2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
 const formSchema = z.object({
@@ -45,15 +46,32 @@ export default function StudentDetailPage() {
   const studentId = params.id as string;
 
   const [student, setStudent] = useState<Student | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // In a real app, you'd fetch this data. Here, we find it from our mock data.
-    const storedStudents = localStorage.getItem('students');
-    const students: Student[] = storedStudents ? JSON.parse(storedStudents) : initialStudents;
-    const foundStudent = students.find((s) => s.id === studentId);
-    if (foundStudent) {
-      setStudent(JSON.parse(JSON.stringify(foundStudent))); // Deep copy to avoid direct mutation
+    if (!studentId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const storedStudents = localStorage.getItem('students');
+      const students: Student[] = storedStudents
+        ? JSON.parse(storedStudents)
+        : initialStudents;
+      const foundStudent = students.find((s) => s.id === studentId);
+
+      if (foundStudent) {
+        setStudent(foundStudent);
+      } else {
+        setError('Student not found.');
+      }
+    } catch (e) {
+      console.error('Failed to load student data:', e);
+      setError('Could not load student data. It might be corrupted.');
+    } finally {
+      setIsLoading(false);
     }
   }, [studentId]);
 
@@ -65,7 +83,6 @@ export default function StudentDetailPage() {
     },
   });
 
-  // Keep form default values in sync with student data
   useEffect(() => {
     if (student) {
       form.reset({
@@ -76,9 +93,7 @@ export default function StudentDetailPage() {
   }, [student, form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (form.formState.isSubmitting) return;
 
     setStudent((prevStudent) => {
       if (!prevStudent) return null;
@@ -92,17 +107,27 @@ export default function StudentDetailPage() {
       const updatedStudent = {
         ...prevStudent,
         progress: values.progress,
-        progressHistory: [...(prevStudent.progressHistory || []), newHistoryEntry],
+        progressHistory: [
+          ...(prevStudent.progressHistory || []),
+          newHistoryEntry,
+        ],
       };
 
-      const storedStudents = localStorage.getItem('students');
-      if (storedStudents) {
-        const students: Student[] = JSON.parse(storedStudents);
+      try {
+        const storedStudents = localStorage.getItem('students');
+        const students: Student[] = storedStudents ? JSON.parse(storedStudents) : [];
         const studentIndex = students.findIndex((s) => s.id === studentId);
         if (studentIndex !== -1) {
           students[studentIndex] = updatedStudent;
           localStorage.setItem('students', JSON.stringify(students));
         }
+      } catch (e) {
+        console.error("Failed to update student in localStorage", e);
+        toast({
+          title: 'Error Saving',
+          description: 'Could not save progress due to a storage issue.',
+          variant: 'destructive',
+        });
       }
 
       return updatedStudent;
@@ -113,19 +138,41 @@ export default function StudentDetailPage() {
       description: `Progress for ${student?.name} has been updated.`,
     });
     form.reset({
-        progress: values.progress,
-        notes: '',
-      });
-    setIsLoading(false);
+      progress: values.progress,
+      notes: '',
+    });
   }
 
-  if (!student) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[50vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <span className="ml-2">Loading student data...</span>
       </div>
     );
+  }
+
+  if (error) {
+    return (
+       <div className="flex flex-col items-center justify-center h-full min-h-[50vh] text-center">
+        <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+        <h2 className="text-xl font-semibold mb-2">An Error Occurred</h2>
+        <p className="text-destructive mb-6">{error}</p>
+        <Button variant="outline" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Dashboard
+        </Button>
+      </div>
+    );
+  }
+
+  if (!student) {
+    // This case is unlikely if error handling is working, but it's a good fallback.
+    return (
+       <div className="flex items-center justify-center h-full min-h-[50vh]">
+         <p>Student data could not be loaded.</p>
+       </div>
+    )
   }
 
   return (
@@ -212,8 +259,8 @@ export default function StudentDetailPage() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" disabled={isLoading} className="w-full">
-                    {isLoading && (
+                  <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
+                    {form.formState.isSubmitting && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
                     Save Progress
