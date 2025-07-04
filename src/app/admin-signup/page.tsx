@@ -62,9 +62,42 @@ export default function AdminSignupPage() {
       await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
       router.push('/dashboard');
     } catch (error: any) {
+      console.error('Admin signup error:', error);
+      let description = error.message || 'An unknown error occurred.';
+
+      if (error.code) {
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            description =
+              'This email address is already in use by another account.';
+            break;
+          case 'auth/weak-password':
+            description =
+              'The password is too weak. Please use at least 6 characters.';
+            break;
+          case 'auth/operation-not-allowed':
+            description =
+              'Email/Password sign-up is not enabled for this project. Please enable it in your Firebase console.';
+            break;
+          case 'auth/invalid-email':
+            description = 'The email address is not valid.';
+            break;
+          case 'permission-denied':
+            description =
+              'Could not create user profile in the database. Please check your Firestore security rules.';
+            break;
+        }
+      }
+
+      // A more generic check for API key issues
+      if (description.includes('API_KEY')) {
+        description =
+          "There's an issue with the app configuration. Please ensure your Firebase credentials are set up correctly in a .env file.";
+      }
+
       toast({
         title: 'Signup Failed',
-        description: error.message || 'An unknown error occurred.',
+        description: description,
         variant: 'destructive',
       });
     } finally {
