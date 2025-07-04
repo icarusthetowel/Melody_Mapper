@@ -92,7 +92,7 @@ export default function StudentDetailPage() {
       const updatedStudent = {
         ...prevStudent,
         progress: values.progress,
-        progressHistory: [...prevStudent.progressHistory, newHistoryEntry],
+        progressHistory: [...(prevStudent.progressHistory || []), newHistoryEntry],
       };
 
       const storedStudents = localStorage.getItem('students');
@@ -236,7 +236,7 @@ export default function StudentDetailPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {student.progressHistory.length > 0 ? (
+              {student.progressHistory && student.progressHistory.length > 0 ? (
                 <div className="space-y-4">
                   {[...student.progressHistory]
                     .reverse()
