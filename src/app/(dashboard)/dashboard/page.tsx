@@ -170,7 +170,7 @@ const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[
   const handleRegisterStudent = () => {
     if (!newStudentName || !newStudentInstrument) return;
     const newStudent: Student = {
-      id: new Date().toISOString(),
+      id: `student-${Date.now()}`,
       name: newStudentName,
       instrument: newStudentInstrument,
       progress: 0,
@@ -305,7 +305,7 @@ const TeacherDashboard = ({ allStudents, updateStudents }: { allStudents: Studen
     if (!newStudentName || !newStudentInstrument || !currentUserEmail) return;
 
     const newStudent: Student = {
-      id: new Date().toISOString(),
+      id: `student-${Date.now()}`,
       name: newStudentName,
       instrument: newStudentInstrument,
       progress: 0,
@@ -477,3 +477,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
