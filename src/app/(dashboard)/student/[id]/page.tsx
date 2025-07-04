@@ -30,6 +30,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, BookOpen, Edit, Loader2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+import { useStudents } from '@/contexts/StudentsContext';
 
 const formSchema = z.object({
   progress: z.number().min(0).max(100),
@@ -44,34 +45,8 @@ export default function StudentDetailPage() {
   const { toast } = useToast();
   const studentId = params.id as string;
 
-  const [student, setStudent] = useState<Student | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!studentId) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const storedStudents = localStorage.getItem('students');
-      // ONLY use local storage. If it's empty, students is an empty array.
-      const students: Student[] = storedStudents ? JSON.parse(storedStudents) : [];
-      const foundStudent = students.find((s) => s.id === studentId);
-
-      if (foundStudent) {
-        setStudent(foundStudent);
-      } else {
-        setError('Student not found.');
-      }
-    } catch (e) {
-      console.error('Failed to load student data:', e);
-      setError('Could not load student data. It might be corrupted.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [studentId]);
+  const { students, getStudentById, updateStudent } = useStudents();
+  const student = getStudentById(studentId);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -99,45 +74,18 @@ export default function StudentDetailPage() {
       progress: values.progress,
     };
 
-    // Create the updated student object
     const updatedStudent: Student = {
       ...student,
       progress: values.progress,
-      // Safely initialize progressHistory if it's missing
       progressHistory: [...(student.progressHistory || []), newHistoryEntry],
     };
 
-    // Update state immediately for a responsive UI
-    setStudent(updatedStudent);
+    updateStudent(updatedStudent);
 
-    // Persist the change to localStorage
-    try {
-      const storedStudents = localStorage.getItem('students');
-      const students: Student[] = storedStudents ? JSON.parse(storedStudents) : [];
-      const studentIndex = students.findIndex((s) => s.id === studentId);
-      
-      if (studentIndex !== -1) {
-        students[studentIndex] = updatedStudent;
-        localStorage.setItem('students', JSON.stringify(students));
-        toast({
-          title: 'Success!',
-          description: `Progress for ${student.name} has been updated.`,
-        });
-      } else {
-         toast({
-          title: 'Error Saving',
-          description: 'Could not find student in storage to update.',
-          variant: 'destructive',
-        });
-      }
-    } catch (e) {
-      console.error("Failed to update student in localStorage", e);
-      toast({
-        title: 'Error Saving',
-        description: 'Could not save progress due to a storage issue.',
-        variant: 'destructive',
-      });
-    }
+    toast({
+      title: 'Success!',
+      description: `Progress for ${student.name} has been updated.`,
+    });
     
     form.reset({
       progress: values.progress,
@@ -145,7 +93,9 @@ export default function StudentDetailPage() {
     });
   }
 
-  if (isLoading) {
+  // The context's student list is empty on the first render while it loads from localStorage.
+  // We show a loader until the list is populated.
+  if (students.length === 0) {
     return (
       <div className="flex items-center justify-center h-full min-h-[50vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -154,26 +104,19 @@ export default function StudentDetailPage() {
     );
   }
 
-  if (error) {
+  // If the student list is loaded but the specific student isn't found, show an error.
+  if (!student) {
     return (
        <div className="flex flex-col items-center justify-center h-full min-h-[50vh] text-center">
         <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
-        <h2 className="text-xl font-semibold mb-2">An Error Occurred</h2>
-        <p className="text-destructive mb-6">{error}</p>
+        <h2 className="text-xl font-semibold mb-2">Student Not Found</h2>
+        <p className="text-muted-foreground mb-6">The requested student could not be found. They may have been deleted.</p>
         <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Dashboard
         </Button>
       </div>
     );
-  }
-
-  if (!student) {
-    return (
-       <div className="flex items-center justify-center h-full min-h-[50vh]">
-         <p>Student data could not be loaded.</p>
-       </div>
-    )
   }
 
   return (

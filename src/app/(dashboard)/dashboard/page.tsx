@@ -14,7 +14,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Student, User } from '@/lib/types';
-import { allStudents as initialStudents, allTeachers } from '@/lib/data';
+import { allTeachers } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Users, Calendar, Music, PlusCircle, Trash2, Loader2 } from 'lucide-react';
 import {
@@ -46,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useStudents } from '@/contexts/StudentsContext';
 
 const StatCard = ({
   title,
@@ -151,7 +152,7 @@ const StudentCard = ({
 );
 
 
-const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[]; updateStudents: React.Dispatch<React.SetStateAction<Student[]>>; }) => {
+const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent }: { allStudents: Student[]; addStudent: (data: any) => void; assignTeacher: (studentId: string, teacherId: string | null) => void; deleteStudent: (studentId: string) => void; }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
@@ -169,36 +170,20 @@ const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[
 
   const handleRegisterStudent = () => {
     if (!newStudentName || !newStudentInstrument) return;
-    const newStudent: Student = {
-      id: `student-${Date.now()}`,
+    
+    addStudent({
       name: newStudentName,
       instrument: newStudentInstrument,
       progress: 0,
       avatarUrl: 'https://placehold.co/100x100.png',
       aiHint: 'person student',
-      progressHistory: [
-        {
-          date: new Date().toISOString(),
-          notes: 'Student account created.',
-          progress: 0,
-        },
-      ],
       teacherId: null,
-    };
-    updateStudents(prevStudents => [...prevStudents, newStudent]);
+    });
     setNewStudentName('');
     setNewStudentInstrument('Piano');
     setIsDialogOpen(false);
   };
   
-  const handleDeleteStudent = (studentId: string) => {
-    updateStudents(prevStudents => prevStudents.filter(s => s.id !== studentId));
-  };
-
-  const handleAssignTeacher = (studentId: string, teacherId: string | null) => {
-    updateStudents(prevStudents => prevStudents.map(s => s.id === studentId ? { ...s, teacherId: teacherId } : s));
-  };
-
   const handleCardClick = (studentId: string) => {
     router.push(`/student/${studentId}`);
   };
@@ -274,9 +259,9 @@ const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[
               >
                 <StudentCard
                   student={student}
-                  onDelete={handleDeleteStudent}
+                  onDelete={deleteStudent}
                   teachers={teachers}
-                  onAssignTeacher={handleAssignTeacher}
+                  onAssignTeacher={assignTeacher}
                 />
               </div>
             ))}
@@ -286,7 +271,7 @@ const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[
   );
 };
 
-const TeacherDashboard = ({ allStudents, updateStudents }: { allStudents: Student[]; updateStudents: React.Dispatch<React.SetStateAction<Student[]>>; }) => {
+const TeacherDashboard = ({ allStudents, addStudent, deleteStudent }: { allStudents: Student[]; addStudent: (data: any) => void; deleteStudent: (studentId: string) => void; }) => {
   const [students, setStudents] = useState<Student[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
@@ -304,35 +289,21 @@ const TeacherDashboard = ({ allStudents, updateStudents }: { allStudents: Studen
 
   const handleRegisterStudent = () => {
     if (!newStudentName || !newStudentInstrument || !currentUserEmail) return;
-
-    const newStudent: Student = {
-      id: `student-${Date.now()}`,
+    
+    addStudent({
       name: newStudentName,
       instrument: newStudentInstrument,
       progress: 0,
       avatarUrl: 'https://placehold.co/100x100.png',
       aiHint: 'person student',
-      progressHistory: [
-        {
-          date: new Date().toISOString(),
-          notes: 'Student account created.',
-          progress: 0,
-        },
-      ],
       teacherId: currentUserEmail,
-    };
-    
-    updateStudents(prevStudents => [...prevStudents, newStudent]);
+    });
 
     setNewStudentName('');
     setNewStudentInstrument('Piano');
     setIsDialogOpen(false);
   };
   
-  const handleDeleteStudent = (studentId: string) => {
-    updateStudents(prevStudents => prevStudents.filter(student => student.id !== studentId));
-  };
-
   const handleCardClick = (studentId: string) => {
     router.push(`/student/${studentId}`);
   };
@@ -407,7 +378,7 @@ const TeacherDashboard = ({ allStudents, updateStudents }: { allStudents: Studen
                 key={student.id}
                 className="flex cursor-pointer"
               >
-                <StudentCard student={student} onDelete={handleDeleteStudent} />
+                <StudentCard student={student} onDelete={deleteStudent} />
               </div>
             ))}
           </div>
@@ -430,34 +401,16 @@ const TeacherDashboard = ({ allStudents, updateStudents }: { allStudents: Studen
 
 export default function DashboardPage() {
   const [role, setRole] = useState<string | null>(null);
-  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const { students, addStudent, assignTeacher, deleteStudent } = useStudents();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
     const userRole = localStorage.getItem('userRole');
     setRole(userRole);
-
-    try {
-        const storedStudents = localStorage.getItem('students');
-        if (storedStudents) {
-          setAllStudents(JSON.parse(storedStudents));
-        } else {
-          setAllStudents(initialStudents);
-        }
-    } catch (e) {
-        console.error("Could not parse students from localStorage", e)
-        setAllStudents(initialStudents);
-    }
   }, []);
 
-  useEffect(() => {
-    if (isClient) {
-        localStorage.setItem('students', JSON.stringify(allStudents));
-    }
-  }, [allStudents, isClient]);
-
-  if (!isClient) {
+  if (!isClient || students.length === 0) {
     return (
       <div className="flex items-center justify-center h-full min-h-[50vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -474,9 +427,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold font-headline">{getDashboardTitle()}</h1>
-      {role === 'admin' ? <AdminDashboard allStudents={allStudents} updateStudents={setAllStudents} /> : <TeacherDashboard allStudents={allStudents} updateStudents={setAllStudents} />}
+      {role === 'admin' ? <AdminDashboard allStudents={students} addStudent={addStudent} assignTeacher={assignTeacher} deleteStudent={deleteStudent} /> : <TeacherDashboard allStudents={students} addStudent={addStudent} deleteStudent={deleteStudent} />}
     </div>
   );
 }
-
-    
