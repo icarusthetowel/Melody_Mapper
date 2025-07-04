@@ -173,10 +173,16 @@ const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[
       id: new Date().toISOString(),
       name: newStudentName,
       instrument: newStudentInstrument,
-      progress: Math.floor(Math.random() * 20),
+      progress: 0,
       avatarUrl: 'https://placehold.co/100x100.png',
       aiHint: 'person student',
-      progressHistory: [],
+      progressHistory: [
+        {
+          date: new Date().toISOString(),
+          notes: 'Student account created.',
+          progress: 0,
+        },
+      ],
     };
     updateStudents(prevStudents => [...prevStudents, newStudent]);
     setNewStudentName('');
@@ -302,10 +308,16 @@ const TeacherDashboard = ({ allStudents, updateStudents }: { allStudents: Studen
       id: new Date().toISOString(),
       name: newStudentName,
       instrument: newStudentInstrument,
-      progress: Math.floor(Math.random() * 20),
+      progress: 0,
       avatarUrl: 'https://placehold.co/100x100.png',
       aiHint: 'person student',
-      progressHistory: [],
+      progressHistory: [
+        {
+          date: new Date().toISOString(),
+          notes: 'Student account created.',
+          progress: 0,
+        },
+      ],
       teacherId: currentUserEmail,
     };
     
