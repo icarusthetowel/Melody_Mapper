@@ -183,6 +183,7 @@ const AdminDashboard = ({ allStudents, updateStudents }: { allStudents: Student[
           progress: 0,
         },
       ],
+      teacherId: null,
     };
     updateStudents(prevStudents => [...prevStudents, newStudent]);
     setNewStudentName('');
