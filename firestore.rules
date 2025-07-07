@@ -1,63 +1,30 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isAuth() {
-      return request.auth != null;
-    }
-
-    function isOwnUser(userId) {
-      return isAuth() && request.auth.uid == userId;
-    }
-
-    function getUserRole() {
-      // Use `exists` to prevent errors on new user creation before doc exists
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-        : '';
-    }
-
-    function isAdmin() {
-      return isAuth() && getUserRole() == 'admin';
-    }
-
-    function isTeacher() {
-      return isAuth() && getUserRole() == 'teacher';
-    }
-
-    // Rules for the 'users' collection
+    
+    // Users can read/write their own user document.
     match /users/{userId} {
-      // Any authenticated user can create their own profile document,
-      // as long as they are creating it for their own UID.
-      allow create: if isAuth() && request.resource.id == request.auth.uid;
-
-      // Users can read and update their own profile.
-      // Admins can read any user's profile to populate the teacher list.
-      allow read, update: if isOwnUser(userId) || isAdmin();
-
-      // Only admins can delete users.
-      allow delete: if isAdmin();
+      allow read, write: if request.auth.uid == userId;
     }
 
-    // Rules for the 'students' collection
+    // Admins can read all user documents.
+    match /users/{userId} {
+      allow get, list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Admins can manage any student.
+    // Teachers can read and update students assigned to them.
     match /students/{studentId} {
-      // Admins have full access to student records.
-      allow read, write: if isAdmin();
-
-      // Teachers can read and update students assigned to them.
-      // We check against the user's email, which is stored in the student's teacherId field.
-      allow read, update: if isTeacher() && resource.data.teacherId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email;
+      allow read, create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read, update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.teacherId == request.auth.token.email;
     }
-
-    // Rules for the 'lessons' collection
+    
+    // Admins can manage all lessons.
+    // Teachers can read lessons for their assigned students.
     match /lessons/{lessonId} {
-      // Admins have full access to lessons.
-      allow read, write: if isAdmin();
-
-      // Teachers can read lessons for students that are assigned to them.
-      allow read: if isTeacher() && get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.teacherId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email;
+       allow read, create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+       allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.teacherId == request.auth.token.email;
     }
   }
 }

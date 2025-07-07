@@ -45,7 +45,7 @@ export default function StudentDetailPage() {
   const { toast } = useToast();
   const studentId = params.id as string;
 
-  const { students, getStudentById, updateStudent } = useStudents();
+  const { students, getStudentById, updateStudent, currentUser } = useStudents();
   const student = getStudentById(studentId);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -80,17 +80,26 @@ export default function StudentDetailPage() {
       progressHistory: [...(student.progressHistory || []), newHistoryEntry],
     };
 
-    updateStudent(updatedStudent);
+    try {
+      await updateStudent(updatedStudent);
 
-    toast({
-      title: 'Success!',
-      description: `Progress for ${student.name} has been updated.`,
-    });
-    
-    form.reset({
-      progress: values.progress,
-      notes: '',
-    });
+      toast({
+        title: 'Success!',
+        description: `Progress for ${student.name} has been updated.`,
+      });
+      
+      form.reset({
+        progress: values.progress,
+        notes: '',
+      });
+    } catch(error) {
+        console.error("Failed to update student progress:", error);
+        toast({
+            title: "Update Failed",
+            description: "Could not save progress. You may not have permission to edit this student. Please check the console for details.",
+            variant: "destructive"
+        })
+    }
   }
 
   // The context's student list is empty on the first render while it loads from localStorage.
@@ -181,6 +190,7 @@ export default function StudentDetailPage() {
                             step={1}
                             value={[field.value]}
                             onValueChange={(value) => field.onChange(value[0])}
+                            disabled={currentUser?.role !== 'admin' && student.teacherId !== currentUser?.email}
                           />
                         </FormControl>
                         <FormMessage />
@@ -197,13 +207,14 @@ export default function StudentDetailPage() {
                           <Textarea
                             placeholder="e.g., Practiced scales for 20 minutes..."
                             {...field}
+                             disabled={currentUser?.role !== 'admin' && student.teacherId !== currentUser?.email}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
+                  <Button type="submit" disabled={form.formState.isSubmitting || (currentUser?.role !== 'admin' && student.teacherId !== currentUser?.email)} className="w-full">
                     {form.formState.isSubmitting && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
