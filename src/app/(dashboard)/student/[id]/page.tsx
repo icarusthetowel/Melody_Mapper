@@ -44,6 +44,7 @@ export default function StudentDetailPage() {
   const params = useParams();
   const { toast } = useToast();
   const studentId = params.id as string;
+  const [isSaving, setIsSaving] = useState(false);
 
   const { students, getStudentById, updateStudent, currentUser } = useStudents();
   const student = getStudentById(studentId);
@@ -65,8 +66,12 @@ export default function StudentDetailPage() {
     }
   }, [student, form]);
 
+  const canEdit = currentUser?.role === 'admin' || student?.teacherId === currentUser?.email;
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (form.formState.isSubmitting || !student) return;
+    if (isSaving || !student) return;
+    
+    setIsSaving(true);
     
     const newHistoryEntry: ProgressLog = {
       date: new Date().toISOString(),
@@ -96,15 +101,16 @@ export default function StudentDetailPage() {
         console.error("Failed to update student progress:", error);
         toast({
             title: "Update Failed",
-            description: "Could not save progress. You may not have permission to edit this student. Please check the console for details.",
+            description: "Could not save progress. You may not have permission for this action. Please check your Firestore rules and try again.",
             variant: "destructive"
         })
+    } finally {
+        setIsSaving(false);
     }
   }
 
-  // The context's student list is empty on the first render while it loads from localStorage.
-  // We show a loader until the list is populated.
-  if (students.length === 0) {
+  // The context's student list is empty on the first render while it loads.
+  if (students.length === 0 && !student) {
     return (
       <div className="flex items-center justify-center h-full min-h-[50vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -190,7 +196,7 @@ export default function StudentDetailPage() {
                             step={1}
                             value={[field.value]}
                             onValueChange={(value) => field.onChange(value[0])}
-                            disabled={currentUser?.role !== 'admin' && student.teacherId !== currentUser?.email}
+                            disabled={!canEdit || isSaving}
                           />
                         </FormControl>
                         <FormMessage />
@@ -207,18 +213,18 @@ export default function StudentDetailPage() {
                           <Textarea
                             placeholder="e.g., Practiced scales for 20 minutes..."
                             {...field}
-                             disabled={currentUser?.role !== 'admin' && student.teacherId !== currentUser?.email}
+                             disabled={!canEdit || isSaving}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" disabled={form.formState.isSubmitting || (currentUser?.role !== 'admin' && student.teacherId !== currentUser?.email)} className="w-full">
-                    {form.formState.isSubmitting && (
+                  <Button type="submit" disabled={!canEdit || isSaving} className="w-full">
+                    {isSaving ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Save Progress
+                    ) : null}
+                    {isSaving ? 'Saving...' : 'Save Progress'}
                   </Button>
                 </form>
               </Form>
