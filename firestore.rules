@@ -3,28 +3,71 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Users can read/write their own user document.
-    match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
-    }
-
-    // Admins can read all user documents.
-    match /users/{userId} {
-      allow get, list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Admins can manage any student.
-    // Teachers can read and update students assigned to them.
-    match /students/{studentId} {
-      allow read, create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      allow read, update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.teacherId == request.auth.token.email;
+    // --- Helper Functions ---
+    function isAuth() {
+      return request.auth != null;
     }
     
-    // Admins can manage all lessons.
-    // Teachers can read lessons for their assigned students.
+    function getUserData(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function isRole(role) {
+      return isAuth() && getUserData(request.auth.uid).role == role;
+    }
+    
+    function isSelf(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    function userEmail() {
+      return getUserData(request.auth.uid).email;
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      // Users can create their own account on signup
+      allow create: if isSelf(userId);
+
+      // Users can read their own profile, Admins can read any profile
+      allow read: if isSelf(userId) || isRole('admin');
+
+      // Users can update their own profile (e.g., name), Admins can update any
+      allow update: if isSelf(userId) || isRole('admin');
+      
+      // Only Admins can delete users
+      allow delete: if isRole('admin');
+    }
+
+    // --- Students Collection ---
+    match /students/{studentId} {
+      function isAssignedTeacher() {
+        // Checks the student doc already in the database
+        return resource.data.teacherId == userEmail();
+      }
+
+      function isCreatingForSelf() {
+        // Checks the student doc being created
+        return request.resource.data.teacherId == userEmail();
+      }
+
+      // Admins can read all students, Teachers can read their own
+      allow read: if isRole('admin') || isAssignedTeacher();
+      
+      // Admins or the assigned teacher can create a student
+      allow create: if isRole('admin') || isCreatingForSelf();
+
+      // Admins or the assigned teacher can update/delete
+      allow update, delete: if isRole('admin') || isAssignedTeacher();
+    }
+    
+    // --- Lessons Collection ---
     match /lessons/{lessonId} {
-       allow read, create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-       allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.teacherId == request.auth.token.email;
+      // Any authenticated user can view the schedule
+      allow read: if isAuth();
+
+      // Only Admins can create, update, or delete lessons
+      allow write: if isRole('admin');
     }
   }
 }
