@@ -48,6 +48,7 @@ import {
 import { useStudents } from '@/contexts/StudentsContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 const StatCard = ({
   title,
@@ -159,20 +160,30 @@ const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent 
   const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
   const [teachers, setTeachers] = useState<User[]>([]);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchTeachers = async () => {
-      const teachersCollectionRef = collection(db, 'users');
-      const q = query(teachersCollectionRef, where('role', '==', 'teacher'));
-      const querySnapshot = await getDocs(q);
-      const teachersData = querySnapshot.docs.map(doc => ({
-        uid: doc.id,
-        ...doc.data(),
-      })) as User[];
-      setTeachers(teachersData);
+      try {
+        const teachersCollectionRef = collection(db, 'users');
+        const q = query(teachersCollectionRef, where('role', '==', 'teacher'));
+        const querySnapshot = await getDocs(q);
+        const teachersData = querySnapshot.docs.map(doc => ({
+          uid: doc.id,
+          ...doc.data(),
+        })) as User[];
+        setTeachers(teachersData);
+      } catch (error) {
+        console.error("Error fetching teachers:", error);
+        toast({
+            title: "Error Loading Teachers",
+            description: "Could not load the list of teachers. Check console for details.",
+            variant: "destructive"
+        });
+      }
     };
     fetchTeachers();
-  }, []);
+  }, [toast]);
 
   const handleRegisterStudent = () => {
     if (!newStudentName || !newStudentInstrument) return;

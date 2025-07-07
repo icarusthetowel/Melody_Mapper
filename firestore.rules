@@ -1,25 +1,63 @@
-rules_version = '2.1';
+
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only read and write their own user document.
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwnUser(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    function getUserRole() {
+      // Use `exists` to prevent errors on new user creation before doc exists
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : '';
+    }
+
+    function isAdmin() {
+      return isAuth() && getUserRole() == 'admin';
+    }
+
+    function isTeacher() {
+      return isAuth() && getUserRole() == 'teacher';
+    }
+
+    // Rules for the 'users' collection
     match /users/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
+      // Any authenticated user can create their own profile document,
+      // as long as they are creating it for their own UID.
+      allow create: if isAuth() && request.resource.id == request.auth.uid;
+
+      // Users can read and update their own profile.
+      // Admins can read any user's profile to populate the teacher list.
+      allow read, update: if isOwnUser(userId) || isAdmin();
+
+      // Only admins can delete users.
+      allow delete: if isAdmin();
     }
 
-    // Lessons can be managed by any authenticated user.
-    // In a real production app, you'd restrict this to admins or involved teachers.
-    match /lessons/{lessonId} {
-      allow read, write: if request.auth != null;
-    }
-
-    // Students can be managed by any authenticated user.
-    // The app's logic filters which students are visible,
-    // but for a real production app, you'd add more specific rules here.
-    // For example: allow read: if resource.data.teacherId == request.auth.token.email;
+    // Rules for the 'students' collection
     match /students/{studentId} {
-       allow read, write: if request.auth != null;
+      // Admins have full access to student records.
+      allow read, write: if isAdmin();
+
+      // Teachers can read and update students assigned to them.
+      // We check against the user's email, which is stored in the student's teacherId field.
+      allow read, update: if isTeacher() && resource.data.teacherId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email;
+    }
+
+    // Rules for the 'lessons' collection
+    match /lessons/{lessonId} {
+      // Admins have full access to lessons.
+      allow read, write: if isAdmin();
+
+      // Teachers can read lessons for students that are assigned to them.
+      allow read: if isTeacher() && get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.teacherId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email;
     }
   }
 }
