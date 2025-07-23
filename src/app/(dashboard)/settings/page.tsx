@@ -94,6 +94,10 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <p className="text-center text-xs text-muted-foreground mt-4">
+        &copy; 2024-2025 this is a product of Omni-Hardware-Optimized
+      </p>
     </div>
   );
 }
