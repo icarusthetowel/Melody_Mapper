@@ -6,6 +6,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { LayoutDashboard, Calendar, Bot, Cog } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ const navItems = [
 
 export function DashboardNav() {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
 
   return (
     <SidebarMenu>
@@ -32,6 +34,7 @@ export function DashboardNav() {
             asChild
             isActive={pathname === item.href}
             className={cn('w-full justify-start')}
+            onClick={() => setOpenMobile(false)}
           >
             <Link href={item.href}>
               <item.icon className="h-5 w-5 mr-3" />
