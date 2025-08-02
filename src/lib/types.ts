@@ -1,5 +1,5 @@
 
-export type Instrument = 'Guitar' | 'Piano' | 'Violin' | 'Drums';
+export type Instrument = 'Guitar' | 'Piano' | 'Violin' | 'Drums' | 'Bass' | 'Ukulele';
 
 export interface ProgressLog {
   date: string;

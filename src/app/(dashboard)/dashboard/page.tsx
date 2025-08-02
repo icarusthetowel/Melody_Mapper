@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import type { Student, User } from '@/lib/types';
+import type { Student, User, Instrument } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Users, Calendar, Music, PlusCircle, Trash2, Loader2 } from 'lucide-react';
 import {
@@ -157,7 +157,7 @@ const StudentCard = ({
 const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent }: { allStudents: Student[]; addStudent: (data: any) => void; assignTeacher: (studentId: string, teacherId: string | null) => void; deleteStudent: (studentId: string) => void; }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
-  const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
+  const [newStudentInstrument, setNewStudentInstrument] = useState<Instrument>('Piano');
   const [teachers, setTeachers] = useState<User[]>([]);
   const router = useRouter();
   const { toast } = useToast();
@@ -210,7 +210,7 @@ const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent 
       acc.push(student.instrument);
     }
     return acc;
-  }, [] as Array<'Guitar' | 'Piano' | 'Violin' | 'Drums'>);
+  }, [] as Instrument[]);
 
   return (
     <>
@@ -248,7 +248,7 @@ const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent 
                     <Label htmlFor="instrument" className="text-right">
                       Instrument
                     </Label>
-                     <Select onValueChange={(value) => setNewStudentInstrument(value as 'Guitar' | 'Piano' | 'Violin' | 'Drums')} defaultValue={newStudentInstrument}>
+                     <Select onValueChange={(value) => setNewStudentInstrument(value as Instrument)} defaultValue={newStudentInstrument}>
                         <SelectTrigger className="col-span-3">
                           <SelectValue placeholder="Select instrument" />
                         </SelectTrigger>
@@ -257,6 +257,8 @@ const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent 
                           <SelectItem value="Guitar">Guitar</SelectItem>
                           <SelectItem value="Violin">Violin</SelectItem>
                           <SelectItem value="Drums">Drums</SelectItem>
+                          <SelectItem value="Bass">Bass</SelectItem>
+                          <SelectItem value="Ukulele">Ukulele</SelectItem>
                         </SelectContent>
                       </Select>
                   </div>
@@ -291,7 +293,7 @@ const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent 
 const TeacherDashboard = ({ allStudents, addStudent, deleteStudent, currentUserEmail }: { allStudents: Student[]; addStudent: (data: any) => void; deleteStudent: (studentId: string) => void; currentUserEmail: string | null; }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
-  const [newStudentInstrument, setNewStudentInstrument] = useState<'Guitar' | 'Piano' | 'Violin' | 'Drums'>('Piano');
+  const [newStudentInstrument, setNewStudentInstrument] = useState<Instrument>('Piano');
   const router = useRouter();
 
   // The student list is already filtered by the context provider
@@ -323,7 +325,7 @@ const TeacherDashboard = ({ allStudents, addStudent, deleteStudent, currentUserE
       acc.push(student.instrument);
     }
     return acc;
-  }, [] as Array<'Guitar' | 'Piano' | 'Violin' | 'Drums'>);
+  }, [] as Instrument[]);
 
   return (
     <>
@@ -361,7 +363,7 @@ const TeacherDashboard = ({ allStudents, addStudent, deleteStudent, currentUserE
                     <Label htmlFor="instrument" className="text-right">
                       Instrument
                     </Label>
-                     <Select onValueChange={(value) => setNewStudentInstrument(value as 'Guitar' | 'Piano' | 'Violin' | 'Drums')} defaultValue={newStudentInstrument}>
+                     <Select onValueChange={(value) => setNewStudentInstrument(value as Instrument)} defaultValue={newStudentInstrument}>
                         <SelectTrigger className="col-span-3">
                           <SelectValue placeholder="Select instrument" />
                         </SelectTrigger>
@@ -370,6 +372,8 @@ const TeacherDashboard = ({ allStudents, addStudent, deleteStudent, currentUserE
                           <SelectItem value="Guitar">Guitar</SelectItem>
                           <SelectItem value="Violin">Violin</SelectItem>
                           <SelectItem value="Drums">Drums</SelectItem>
+                          <SelectItem value="Bass">Bass</SelectItem>
+                          <SelectItem value="Ukulele">Ukulele</SelectItem>
                         </SelectContent>
                       </Select>
                   </div>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -102,6 +103,8 @@ export default function PracticePlanGeneratorPage() {
                           <SelectItem value="Piano">Piano</SelectItem>
                           <SelectItem value="Violin">Violin</SelectItem>
                           <SelectItem value="Drums">Drums</SelectItem>
+                          <SelectItem value="Bass">Bass</SelectItem>
+                          <SelectItem value="Ukulele">Ukulele</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
