@@ -59,6 +59,7 @@ export default function AdminSignupPage() {
         role: 'admin' as const,
       };
 
+      // commenting to push a redeployment 
       await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
       router.push('/dashboard');
     } catch (error: any) {
