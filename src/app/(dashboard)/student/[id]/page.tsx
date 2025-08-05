@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Student, ProgressLog } from '@/lib/types';
+import type { Student, ProgressLog, Document as DocType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,7 +14,19 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
@@ -27,10 +39,12 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, BookOpen, Edit, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, BookOpen, Edit, Loader2, AlertTriangle, Upload, File, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useStudents } from '@/contexts/StudentsContext';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const formSchema = z.object({
   progress: z.number().min(0).max(100),
@@ -45,6 +59,8 @@ export default function StudentDetailPage() {
   const { toast } = useToast();
   const studentId = params.id as string;
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { students, getStudentById, updateStudent, currentUser } = useStudents();
   const student = getStudentById(studentId);
@@ -108,6 +124,82 @@ export default function StudentDetailPage() {
         setIsSaving(false);
     }
   }
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!student || !canEdit) return;
+    setIsUploading(true);
+
+    try {
+      const storage = getStorage();
+      const filePath = `students/${student.id}/documents/${Date.now()}_${file.name}`;
+      const storageRef = ref(storage, filePath);
+
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      const newDocument: DocType = {
+        name: file.name,
+        url: downloadURL,
+        path: filePath,
+      };
+
+      const updatedDocuments = [...(student.documents || []), newDocument];
+      await updateStudent({ ...student, documents: updatedDocuments });
+
+      toast({
+        title: 'Upload Successful',
+        description: `${file.name} has been uploaded.`,
+      });
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast({
+        title: 'Upload Failed',
+        description: 'Could not upload the document. Please check storage rules and try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeleteDocument = async (docToDelete: DocType) => {
+     if (!student || !canEdit) return;
+
+    try {
+      // 1. Delete from Storage
+      const storage = getStorage();
+      const fileRef = ref(storage, docToDelete.path);
+      await deleteObject(fileRef);
+
+      // 2. Delete from Firestore
+      const updatedDocuments = student.documents?.filter(d => d.path !== docToDelete.path);
+      await updateStudent({ ...student, documents: updatedDocuments });
+      
+      toast({
+        title: 'Document Deleted',
+        description: `${docToDelete.name} has been removed.`,
+      });
+
+    } catch(error) {
+      console.error("Error deleting document:", error);
+      toast({
+        title: 'Delete Failed',
+        description: 'Could not delete the document. Please check storage rules and try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   // The context's student list is empty on the first render while it loads.
   if (students.length === 0 && !student) {
@@ -232,7 +324,7 @@ export default function StudentDetailPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 flex flex-col gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -275,6 +367,75 @@ export default function StudentDetailPage() {
                 </p>
               )}
             </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <File className="h-5 w-5" />
+                  Documents
+                </CardTitle>
+                <CardDescription>
+                    Manage and view documents for this student.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {student.documents && student.documents.length > 0 ? (
+                <div className="space-y-2">
+                  {student.documents.map((doc) => (
+                    <div key={doc.path} className="flex items-center justify-between p-2 rounded-md border group">
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline truncate">
+                        <File className="h-4 w-4" />
+                        <span className="truncate">{doc.name}</span>
+                      </a>
+                       {canEdit && (
+                         <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the document: {doc.name}.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteDocument(doc)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  <p>No documents uploaded for this student.</p>
+                </div>
+              )}
+            </CardContent>
+            {canEdit && (
+              <CardFooter className="border-t pt-6">
+                <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="w-full">
+                  {isUploading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
+                  {isUploading ? 'Uploading...' : 'Upload New Document'}
+                </Button>
+                <Input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+              </CardFooter>
+            )}
           </Card>
         </div>
       </div>

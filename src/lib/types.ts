@@ -16,6 +16,12 @@ export interface User {
   role: UserRole;
 }
 
+export interface Document {
+  name: string;
+  url: string;
+  path: string; // Full path in Firebase Storage for deletion
+}
+
 export interface Student {
   id: string; // Firestore document ID
   name:string;
@@ -25,6 +31,7 @@ export interface Student {
   aiHint?: string;
   progressHistory: ProgressLog[];
   teacherId?: string | null;
+  documents?: Document[];
 }
 
 export interface Lesson {
