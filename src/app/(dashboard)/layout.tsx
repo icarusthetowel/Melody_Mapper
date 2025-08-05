@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { PropsWithChildren } from 'react';
@@ -114,7 +115,7 @@ export default function DashboardLayout({ children }: PropsWithChildren) {
                   <SidebarTrigger />
               </div>
               <div className='col-start-2 col-span-1 text-center'>
-                  <h1 className="text-xl font-bold font-headline">Store 723</h1>
+                  <h1 className="text-xl font-bold font-headline">Melody Mapper</h1>
               </div>
           </header>
           <main className="p-4 md:p-6">{children}</main>
