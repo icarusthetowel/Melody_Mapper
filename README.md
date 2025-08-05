@@ -54,4 +54,4 @@ To run this application, you need to connect it to a Firebase project. If you do
 6.  Copy the contents of the `firestore.rules` file from this project and paste them into the rules editor in the console.
 7.  Click **Publish**.
 
-Your application is now fully connected to your Firebase backend!
+### Version : as of 8/3/25 - 1.2
