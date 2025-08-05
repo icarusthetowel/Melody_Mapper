@@ -50,7 +50,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useStudents } from '@/contexts/StudentsContext';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, Timestamp, writeBatch, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, Timestamp, writeBatch, query, where, getDocs } from 'firebase/firestore';
 
 
 // Helper to compare dates by ignoring time
@@ -319,7 +319,7 @@ export default function SchedulePage() {
                   Lessons for {format(selectedDate, 'MMMM d')}
                 </CardTitle>
               </div>
-              {currentUser?.role === 'admin' && (
+              {(currentUser?.role === 'admin' || currentUser?.role === 'teacher') && (
                  <Dialog open={isDialogOpen} onOpenChange={(isOpen) => { setIsDialogOpen(isOpen); if (!isOpen) setEditingLesson(null); }}>
                     <DialogTrigger asChild>
                       <Button size="sm" onClick={handleOpenAddDialog}>
@@ -360,7 +360,7 @@ export default function SchedulePage() {
                               {lesson.startTime} - {lesson.endTime}
                             </p>
                           </div>
-                           {currentUser?.role === 'admin' && (
+                           {(currentUser?.role === 'admin' || currentUser?.role === 'teacher') && (
                             <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(lesson)}>
                                 <Edit className="h-4 w-4" />
