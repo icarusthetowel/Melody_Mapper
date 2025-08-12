@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,6 +16,15 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,18 +49,24 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, BookOpen, Edit, Loader2, AlertTriangle, Upload, File, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Edit, Loader2, AlertTriangle, Link as LinkIcon, File, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useStudents } from '@/contexts/StudentsContext';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
-const formSchema = z.object({
+const progressFormSchema = z.object({
   progress: z.number().min(0).max(100),
   notes: z
     .string()
     .min(10, { message: 'Notes must be at least 10 characters long.' }),
 });
+
+const documentFormSchema = z.object({
+  name: z.string().min(1, { message: 'Document name is required.' }),
+  url: z.string().url({ message: 'Please enter a valid URL.' }),
+});
+
 
 export default function StudentDetailPage() {
   const router = useRouter();
@@ -59,32 +74,39 @@ export default function StudentDetailPage() {
   const { toast } = useToast();
   const studentId = params.id as string;
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDocDialogOpen, setIsDocDialogOpen] = useState(false);
 
   const { students, getStudentById, updateStudent, currentUser } = useStudents();
   const student = getStudentById(studentId);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const progressForm = useForm<z.infer<typeof progressFormSchema>>({
+    resolver: zodResolver(progressFormSchema),
     defaultValues: {
       progress: student?.progress || 0,
       notes: '',
     },
   });
+  
+  const documentForm = useForm<z.infer<typeof documentFormSchema>>({
+    resolver: zodResolver(documentFormSchema),
+    defaultValues: {
+      name: '',
+      url: '',
+    },
+  });
 
   useEffect(() => {
     if (student) {
-      form.reset({
+      progressForm.reset({
         progress: student.progress,
         notes: '',
       });
     }
-  }, [student, form]);
+  }, [student, progressForm]);
 
   const canEdit = currentUser?.role === 'admin' || student?.teacherId === currentUser?.email;
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onProgressSubmit(values: z.infer<typeof progressFormSchema>) {
     if (isSaving || !student) return;
     
     setIsSaving(true);
@@ -109,7 +131,7 @@ export default function StudentDetailPage() {
         description: `Progress for ${student.name} has been updated.`,
       });
       
-      form.reset({
+      progressForm.reset({
         progress: values.progress,
         notes: '',
       });
@@ -117,7 +139,7 @@ export default function StudentDetailPage() {
         console.error("Failed to update student progress:", error);
         toast({
             title: "Update Failed",
-            description: "Could not save progress. You may not have permission for this action. Please check your Firestore rules and try again.",
+            description: "Could not save progress. You may not have permission for this action.",
             variant: "destructive"
         })
     } finally {
@@ -125,83 +147,57 @@ export default function StudentDetailPage() {
     }
   }
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      handleFileUpload(file);
-    }
-  };
-
-  const handleFileUpload = async (file: File) => {
+  async function onDocumentSubmit(values: z.infer<typeof documentFormSchema>) {
     if (!student || !canEdit) return;
-    setIsUploading(true);
 
+    const newDocument: DocType = {
+      id: new Date().toISOString(), // Simple unique ID
+      name: values.name,
+      url: values.url,
+    };
+    
+    const updatedDocuments = [...(student.documents || []), newDocument];
+    
     try {
-      const storage = getStorage();
-      const filePath = `students/${student.id}/documents/${Date.now()}_${file.name}`;
-      const storageRef = ref(storage, filePath);
-
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-
-      const newDocument: DocType = {
-        name: file.name,
-        url: downloadURL,
-        path: filePath,
-      };
-
-      const updatedDocuments = [...(student.documents || []), newDocument];
-      await updateStudent({ ...student, documents: updatedDocuments });
-
-      toast({
-        title: 'Upload Successful',
-        description: `${file.name} has been uploaded.`,
-      });
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      toast({
-        title: 'Upload Failed',
-        description: 'Could not upload the document. Please check storage rules and try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+        await updateStudent({ ...student, documents: updatedDocuments });
+        toast({
+            title: 'Success!',
+            description: 'Document link added.',
+        });
+        documentForm.reset();
+        setIsDocDialogOpen(false);
+    } catch(error) {
+        console.error("Failed to add document link:", error);
+        toast({
+            title: "Save Failed",
+            description: "Could not save the document link.",
+            variant: "destructive"
+        });
     }
-  };
+  }
 
-  const handleDeleteDocument = async (docToDelete: DocType) => {
+  const handleDeleteDocument = async (docId: string) => {
      if (!student || !canEdit) return;
 
+    const updatedDocuments = student.documents?.filter(d => d.id !== docId);
+
     try {
-      // 1. Delete from Storage
-      const storage = getStorage();
-      const fileRef = ref(storage, docToDelete.path);
-      await deleteObject(fileRef);
-
-      // 2. Delete from Firestore
-      const updatedDocuments = student.documents?.filter(d => d.path !== docToDelete.path);
       await updateStudent({ ...student, documents: updatedDocuments });
-      
       toast({
-        title: 'Document Deleted',
-        description: `${docToDelete.name} has been removed.`,
+        title: 'Document Link Deleted',
+        description: 'The link has been removed.',
       });
-
     } catch(error) {
-      console.error("Error deleting document:", error);
+      console.error("Error deleting document link:", error);
       toast({
         title: 'Delete Failed',
-        description: 'Could not delete the document. Please check storage rules and try again.',
+        description: 'Could not delete the document link.',
         variant: 'destructive',
       });
     }
   };
 
 
-  // The context's student list is empty on the first render while it loads.
   if (students.length === 0 && !student) {
     return (
       <div className="flex items-center justify-center h-full min-h-[50vh]">
@@ -211,13 +207,12 @@ export default function StudentDetailPage() {
     );
   }
 
-  // If the student list is loaded but the specific student isn't found, show an error.
   if (!student) {
     return (
        <div className="flex flex-col items-center justify-center h-full min-h-[50vh] text-center">
         <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
         <h2 className="text-xl font-semibold mb-2">Student Not Found</h2>
-        <p className="text-muted-foreground mb-6">The requested student could not be found. They may have been deleted.</p>
+        <p className="text-muted-foreground mb-6">The requested student could not be found.</p>
         <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Dashboard
@@ -270,13 +265,13 @@ export default function StudentDetailPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Form {...form}>
+              <Form {...progressForm}>
                 <form
-                  onSubmit={form.handleSubmit(onSubmit)}
+                  onSubmit={progressForm.handleSubmit(onProgressSubmit)}
                   className="space-y-6"
                 >
                   <FormField
-                    control={form.control}
+                    control={progressForm.control}
                     name="progress"
                     render={({ field }) => (
                       <FormItem>
@@ -296,7 +291,7 @@ export default function StudentDetailPage() {
                     )}
                   />
                   <FormField
-                    control={form.control}
+                    control={progressForm.control}
                     name="notes"
                     render={({ field }) => (
                       <FormItem>
@@ -376,16 +371,16 @@ export default function StudentDetailPage() {
                   Documents
                 </CardTitle>
                 <CardDescription>
-                    Manage and view documents for this student.
+                    Manage and view document links for this student.
                 </CardDescription>
             </CardHeader>
             <CardContent>
               {student.documents && student.documents.length > 0 ? (
                 <div className="space-y-2">
                   {student.documents.map((doc) => (
-                    <div key={doc.path} className="flex items-center justify-between p-2 rounded-md border group">
+                    <div key={doc.id} className="flex items-center justify-between p-2 rounded-md border group">
                       <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline truncate">
-                        <File className="h-4 w-4" />
+                        <LinkIcon className="h-4 w-4" />
                         <span className="truncate">{doc.name}</span>
                       </a>
                        {canEdit && (
@@ -399,12 +394,12 @@ export default function StudentDetailPage() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will permanently delete the document: {doc.name}.
+                                This will permanently delete the link: {doc.name}.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteDocument(doc)}>Delete</AlertDialogAction>
+                              <AlertDialogAction onClick={() => handleDeleteDocument(doc.id)}>Delete</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
@@ -414,26 +409,61 @@ export default function StudentDetailPage() {
                 </div>
               ) : (
                 <div className="text-center text-muted-foreground py-8">
-                  <p>No documents uploaded for this student.</p>
+                  <p>No document links have been added for this student.</p>
                 </div>
               )}
             </CardContent>
             {canEdit && (
               <CardFooter className="border-t pt-6">
-                <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="w-full">
-                  {isUploading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Upload className="mr-2 h-4 w-4" />
-                  )}
-                  {isUploading ? 'Uploading...' : 'Upload New Document'}
-                </Button>
-                <Input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
+                 <Dialog open={isDocDialogOpen} onOpenChange={setIsDocDialogOpen}>
+                    <DialogTrigger asChild>
+                       <Button className="w-full">
+                         <LinkIcon className="mr-2 h-4 w-4" />
+                          Add Document Link
+                       </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add Document Link</DialogTitle>
+                          <DialogDescription>
+                            Enter a name and the shareable URL for the document.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <Form {...documentForm}>
+                            <form onSubmit={documentForm.handleSubmit(onDocumentSubmit)} className="space-y-4">
+                               <FormField
+                                  control={documentForm.control}
+                                  name="name"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Document Name</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="e.g., Weekly Sheet Music" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={documentForm.control}
+                                  name="url"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Document URL</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="https://..." {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <DialogFooter>
+                                  <Button type="submit">Save Link</Button>
+                                </DialogFooter>
+                            </form>
+                        </Form>
+                    </DialogContent>
+                </Dialog>
               </CardFooter>
             )}
           </Card>
@@ -442,3 +472,5 @@ export default function StudentDetailPage() {
     </div>
   );
 }
+
+    

@@ -17,9 +17,9 @@ export interface User {
 }
 
 export interface Document {
+  id: string;
   name: string;
   url: string;
-  path: string; // Full path in Firebase Storage for deletion
 }
 
 export interface Student {
@@ -42,3 +42,5 @@ export interface Lesson {
   endTime: string;
   seriesId?: string; // Used to link recurring lessons
 }
+
+    
