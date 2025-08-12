@@ -45,7 +45,7 @@ export default function SignupPage() {
       const newUser = {
         fullName,
         email: firebaseUser.email!,
-        role: 'teacher' as const,
+        role: 'student' as const, // New users from this form are students
       };
 
       await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
@@ -103,7 +103,7 @@ export default function SignupPage() {
               <Music2 className="h-12 w-12 text-primary" />
             </div>
             <CardTitle className="text-2xl text-center">
-              Create an Account
+              Create a Student Account
             </CardTitle>
             <CardDescription className="text-center">
               Sign up for Melody Mapper

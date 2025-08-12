@@ -15,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Student, User, Instrument } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Users, Calendar, Music, PlusCircle, Trash2, Loader2 } from 'lucide-react';
+import { Users, Calendar, Music, PlusCircle, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -75,11 +75,17 @@ const StudentCard = ({
   onDelete,
   teachers,
   onAssignTeacher,
+  studentUsers,
+  onAssignStudentUser,
+  currentUser,
 }: {
   student: Student;
   onDelete?: (studentId: string) => void;
   teachers?: User[];
   onAssignTeacher?: (studentId: string, teacherId: string | null) => void;
+  studentUsers?: User[];
+  onAssignStudentUser?: (studentId: string, studentUserId: string | null) => void;
+  currentUser?: User | null;
 }) => (
   <Card className="flex flex-col w-full hover:shadow-lg transition-shadow duration-200 relative group h-full">
     {onDelete && (
@@ -129,8 +135,8 @@ const StudentCard = ({
       </div>
       <Progress value={student.progress} aria-label={`${student.name}'s progress`} />
     </CardContent>
-    {onAssignTeacher && teachers && (
-      <CardFooter>
+    <CardFooter className="flex-col items-start gap-4">
+      {onAssignTeacher && teachers && currentUser?.role === 'admin' && (
         <div className="w-full" onClick={(e) => e.stopPropagation()}>
           <Label htmlFor={`teacher-select-${student.id}`} className="text-xs text-muted-foreground">Assign Teacher</Label>
           <Select
@@ -148,13 +154,32 @@ const StudentCard = ({
             </SelectContent>
           </Select>
         </div>
-      </CardFooter>
-    )}
+      )}
+       {onAssignStudentUser && studentUsers && currentUser?.role === 'teacher' && (
+        <div className="w-full" onClick={(e) => e.stopPropagation()}>
+          <Label htmlFor={`student-user-select-${student.id}`} className="text-xs text-muted-foreground">Assign Student Account</Label>
+          <Select
+            defaultValue={student.studentUserId || 'none'}
+            onValueChange={(value) => onAssignStudentUser(student.id, value === 'none' ? null : value)}
+          >
+            <SelectTrigger id={`student-user-select-${student.id}`} className="h-9 mt-1">
+              <SelectValue placeholder="Select student account" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              {studentUsers.map((user) => (
+                <SelectItem key={user.uid} value={user.uid}>{user.email}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </CardFooter>
   </Card>
 );
 
 
-const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent }: { allStudents: Student[]; addStudent: (data: any) => void; assignTeacher: (studentId: string, teacherId: string | null) => void; deleteStudent: (studentId: string) => void; }) => {
+const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent, currentUser }: { allStudents: Student[]; addStudent: (data: any) => void; assignTeacher: (studentId: string, teacherId: string | null) => void; deleteStudent: (studentId: string) => void; currentUser: User | null; }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentInstrument, setNewStudentInstrument] = useState<Instrument>('Piano');
@@ -227,12 +252,12 @@ const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent 
               <DialogTrigger asChild>
                 <Button>
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Student
+                  Add Student Profile
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Add New Student</DialogTitle>
+                  <DialogTitle>Add New Student Profile</DialogTitle>
                   <DialogDescription>
                     Add a new student to the platform. Click save when you're done.
                   </DialogDescription>
@@ -281,6 +306,7 @@ const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent 
                   onDelete={deleteStudent}
                   teachers={teachers}
                   onAssignTeacher={assignTeacher}
+                  currentUser={currentUser}
                 />
               </div>
             ))}
@@ -290,17 +316,42 @@ const AdminDashboard = ({ allStudents, addStudent, assignTeacher, deleteStudent 
   );
 };
 
-const TeacherDashboard = ({ allStudents, addStudent, deleteStudent, currentUserEmail }: { allStudents: Student[]; addStudent: (data: any) => void; deleteStudent: (studentId: string) => void; currentUserEmail: string | null; }) => {
+const TeacherDashboard = ({ allStudents, addStudent, deleteStudent, assignStudentUser, currentUser }: { allStudents: Student[]; addStudent: (data: any) => void; deleteStudent: (studentId: string) => void; assignStudentUser: (studentId: string, studentUserId: string | null) => void; currentUser: User | null; }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentInstrument, setNewStudentInstrument] = useState<Instrument>('Piano');
+  const [studentUsers, setStudentUsers] = useState<User[]>([]);
   const router = useRouter();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchStudentUsers = async () => {
+      try {
+        const usersCollectionRef = collection(db, 'users');
+        const q = query(usersCollectionRef, where('role', '==', 'student'));
+        const querySnapshot = await getDocs(q);
+        const usersData = querySnapshot.docs.map(doc => ({
+          uid: doc.id,
+          ...doc.data(),
+        })) as User[];
+        setStudentUsers(usersData);
+      } catch (error) {
+        console.error("Error fetching student users:", error);
+        toast({
+            title: "Error Loading Student Users",
+            description: "Could not load the list of student accounts.",
+            variant: "destructive"
+        });
+      }
+    };
+    fetchStudentUsers();
+  }, [toast]);
 
   // The student list is already filtered by the context provider
   const students = allStudents;
 
   const handleRegisterStudent = () => {
-    if (!newStudentName || !newStudentInstrument || !currentUserEmail) return;
+    if (!newStudentName || !newStudentInstrument || !currentUser?.email) return;
     
     addStudent({
       name: newStudentName,
@@ -308,7 +359,7 @@ const TeacherDashboard = ({ allStudents, addStudent, deleteStudent, currentUserE
       progress: 0,
       avatarUrl: 'https://placehold.co/100x100.png',
       aiHint: 'person student',
-      teacherId: currentUserEmail,
+      teacherId: currentUser.email,
     });
 
     setNewStudentName('');
@@ -342,12 +393,12 @@ const TeacherDashboard = ({ allStudents, addStudent, deleteStudent, currentUserE
               <DialogTrigger asChild>
                 <Button>
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Student
+                  Add Student Profile
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Add New Student</DialogTitle>
+                  <DialogTitle>Add New Student Profile</DialogTitle>
                   <DialogDescription>
                     Add a new student to your roster. Click save when you're done.
                   </DialogDescription>
@@ -392,7 +443,7 @@ const TeacherDashboard = ({ allStudents, addStudent, deleteStudent, currentUserE
                 key={student.id}
                 className="flex cursor-pointer"
               >
-                <StudentCard student={student} onDelete={deleteStudent} />
+                <StudentCard student={student} onDelete={deleteStudent} studentUsers={studentUsers} onAssignStudentUser={assignStudentUser} currentUser={currentUser} />
               </div>
             ))}
           </div>
@@ -412,22 +463,87 @@ const TeacherDashboard = ({ allStudents, addStudent, deleteStudent, currentUserE
   );
 };
 
+const StudentDashboard = ({ currentUser }: { currentUser: User | null }) => {
+  const { students, getStudentById } = useStudents();
+  const router = useRouter();
+
+  if (!currentUser) return null;
+
+  const assignedStudentProfile = students.find(s => s.studentUserId === currentUser.uid);
+
+  const handleViewProfile = () => {
+    if (assignedStudentProfile) {
+      router.push(`/student/${assignedStudentProfile.id}`);
+    }
+  };
+
+  return (
+    <div className="flex justify-center items-center h-full min-h-[60vh]">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Welcome, {currentUser.fullName}!</CardTitle>
+          <CardDescription>Your student dashboard.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {assignedStudentProfile ? (
+            <div>
+              <p className="mb-4">You are assigned to the following student profile:</p>
+              <div className="flex items-center gap-4 p-4 border rounded-lg">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={assignedStudentProfile.avatarUrl} alt={assignedStudentProfile.name} />
+                  <AvatarFallback>{assignedStudentProfile.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold">{assignedStudentProfile.name}</p>
+                  <p className="text-sm text-muted-foreground">{assignedStudentProfile.instrument}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center p-4 border-dashed border-2 rounded-lg">
+              <AlertTriangle className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+              <p className="text-muted-foreground">You have not been assigned to a student profile yet. Please contact your teacher.</p>
+            </div>
+          )}
+        </CardContent>
+        {assignedStudentProfile && (
+          <CardFooter>
+            <Button onClick={handleViewProfile} className="w-full">View My Profile</Button>
+          </CardFooter>
+        )}
+      </Card>
+    </div>
+  )
+};
+
 
 export default function DashboardPage() {
-  const { students, addStudent, assignTeacher, deleteStudent, currentUser } = useStudents();
+  const { students, addStudent, assignTeacher, deleteStudent, assignStudentUser, currentUser } = useStudents();
   
   const getDashboardTitle = () => {
     if (currentUser?.role === 'admin') return 'Admin Dashboard';
-    if (currentUser?.role === 'teacher') return 'Student/Teacher Dashboard';
+    if (currentUser?.role === 'teacher') return 'Teacher Dashboard';
+    if (currentUser?.role === 'student') return 'Student Dashboard';
     return 'Dashboard';
+  }
+
+  const renderDashboard = () => {
+    switch(currentUser?.role) {
+      case 'admin':
+        return <AdminDashboard allStudents={students} addStudent={addStudent} assignTeacher={assignTeacher} deleteStudent={deleteStudent} currentUser={currentUser} />;
+      case 'teacher':
+        return <TeacherDashboard allStudents={students} addStudent={addStudent} deleteStudent={deleteStudent} assignStudentUser={assignStudentUser} currentUser={currentUser} />;
+      case 'student':
+        return <StudentDashboard currentUser={currentUser} />;
+      default:
+        return null;
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold font-headline">{getDashboardTitle()}</h1>
-      {currentUser?.role === 'admin' ? 
-        <AdminDashboard allStudents={students} addStudent={addStudent} assignTeacher={assignTeacher} deleteStudent={deleteStudent} /> : 
-        <TeacherDashboard allStudents={students} addStudent={addStudent} deleteStudent={deleteStudent} currentUserEmail={currentUser?.email || null} />}
+      {renderDashboard()}
     </div>
   );
 }

@@ -77,7 +77,9 @@ export default function StudentDetailPage() {
   const [isDocDialogOpen, setIsDocDialogOpen] = useState(false);
 
   const { students, getStudentById, updateStudent, currentUser } = useStudents();
-  const student = getStudentById(studentId);
+  // For students, the context only loads their profile, so we can find it directly.
+  // For teachers/admins, it loads multiple, so we use getStudentById.
+  const student = currentUser?.role === 'student' ? students[0] : getStudentById(studentId);
 
   const progressForm = useForm<z.infer<typeof progressFormSchema>>({
     resolver: zodResolver(progressFormSchema),
@@ -103,8 +105,16 @@ export default function StudentDetailPage() {
       });
     }
   }, [student, progressForm]);
+  
+  // Security check: Redirect student if they try to access a profile that isn't theirs
+  useEffect(() => {
+    if (currentUser?.role === 'student' && students.length > 0 && student?.studentUserId !== currentUser.uid) {
+      router.push('/dashboard');
+    }
+  }, [currentUser, student, students, router]);
 
-  const canEdit = currentUser?.role === 'admin' || student?.teacherId === currentUser?.email;
+
+  const canEdit = currentUser?.role === 'admin' || (currentUser?.role === 'teacher' && student?.teacherId === currentUser?.email);
 
   async function onProgressSubmit(values: z.infer<typeof progressFormSchema>) {
     if (isSaving || !student) return;
@@ -212,7 +222,7 @@ export default function StudentDetailPage() {
        <div className="flex flex-col items-center justify-center h-full min-h-[50vh] text-center">
         <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
         <h2 className="text-xl font-semibold mb-2">Student Not Found</h2>
-        <p className="text-muted-foreground mb-6">The requested student could not be found.</p>
+        <p className="text-muted-foreground mb-6">The requested student could not be found or you do not have permission to view them.</p>
         <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Dashboard
@@ -254,69 +264,71 @@ export default function StudentDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Edit className="h-5 w-5" />
-                Log Progress
-              </CardTitle>
-              <CardDescription>
-                Update the student's progress and add notes.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...progressForm}>
-                <form
-                  onSubmit={progressForm.handleSubmit(onProgressSubmit)}
-                  className="space-y-6"
-                >
-                  <FormField
-                    control={progressForm.control}
-                    name="progress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Progress: {field.value}%</FormLabel>
-                        <FormControl>
-                          <Slider
-                            min={0}
-                            max={100}
-                            step={1}
-                            value={[field.value]}
-                            onValueChange={(value) => field.onChange(value[0])}
-                            disabled={!canEdit || isSaving}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={progressForm.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notes</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="e.g., Practiced scales for 20 minutes..."
-                            {...field}
-                             disabled={!canEdit || isSaving}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={!canEdit || isSaving} className="w-full">
-                    {isSaving ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    {isSaving ? 'Saving...' : 'Save Progress'}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+          {canEdit && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Edit className="h-5 w-5" />
+                  Log Progress
+                </CardTitle>
+                <CardDescription>
+                  Update the student's progress and add notes.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...progressForm}>
+                  <form
+                    onSubmit={progressForm.handleSubmit(onProgressSubmit)}
+                    className="space-y-6"
+                  >
+                    <FormField
+                      control={progressForm.control}
+                      name="progress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>New Progress: {field.value}%</FormLabel>
+                          <FormControl>
+                            <Slider
+                              min={0}
+                              max={100}
+                              step={1}
+                              value={[field.value]}
+                              onValueChange={(value) => field.onChange(value[0])}
+                              disabled={!canEdit || isSaving}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={progressForm.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Notes</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="e.g., Practiced scales for 20 minutes..."
+                              {...field}
+                              disabled={!canEdit || isSaving}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit" disabled={!canEdit || isSaving} className="w-full">
+                      {isSaving ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      {isSaving ? 'Saving...' : 'Save Progress'}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="lg:col-span-2 flex flex-col gap-6">
@@ -472,5 +484,3 @@ export default function StudentDetailPage() {
     </div>
   );
 }
-
-    

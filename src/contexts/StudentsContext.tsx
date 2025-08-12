@@ -20,6 +20,7 @@ interface StudentsContextType {
   updateStudent: (updatedStudent: Student) => Promise<void>;
   deleteStudent: (studentId: string) => Promise<void>;
   assignTeacher: (studentId: string, teacherId: string | null) => Promise<void>;
+  assignStudentUser: (studentId: string, studentUserId: string | null) => Promise<void>;
   getStudentById: (studentId: string) => Student | undefined;
   currentUser: User | null;
 }
@@ -46,9 +47,12 @@ export function StudentsProvider({ children, currentUser }: { children: ReactNod
     if (currentUser.role === 'admin') {
       // Admin sees all students
       q = query(studentsCollectionRef);
-    } else {
+    } else if (currentUser.role === 'teacher') {
       // Teacher sees only their students (or students assigned to their email)
       q = query(studentsCollectionRef, where('teacherId', '==', currentUser.email));
+    } else { // student
+      // Student sees only their assigned profile
+      q = query(studentsCollectionRef, where('studentUserId', '==', currentUser.uid));
     }
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -94,11 +98,16 @@ export function StudentsProvider({ children, currentUser }: { children: ReactNod
     await updateDoc(studentRef, { teacherId });
   }, []);
 
+  const assignStudentUser = useCallback(async (studentId: string, studentUserId: string | null) => {
+    const studentRef = doc(db, 'students', studentId);
+    await updateDoc(studentRef, { studentUserId });
+  }, []);
+
   const getStudentById = useCallback((studentId: string) => {
     return students.find(s => s.id === studentId);
   }, [students]);
 
-  const value = { students, addStudent, updateStudent, deleteStudent, assignTeacher, getStudentById, currentUser };
+  const value = { students, addStudent, updateStudent, deleteStudent, assignTeacher, assignStudentUser, getStudentById, currentUser };
 
   return (
     <StudentsContext.Provider value={value}>

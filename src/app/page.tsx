@@ -51,7 +51,7 @@ export default function LoginPage() {
               <Music2 className="h-12 w-12 text-primary" />
             </div>
             <CardTitle className="text-2xl text-center">
-              Student/Teacher Login
+              Login
             </CardTitle>
             <CardDescription className="text-center">
               Enter your credentials to access your dashboard
@@ -90,6 +90,11 @@ export default function LoginPage() {
               Don&apos;t have an account?{' '}
               <Link href="/signup" className="underline">
                 Sign up
+              </Link>
+            </div>
+            <div className="mt-2 text-center text-sm">
+              <Link href="/teacher-signup" className="underline">
+                Sign up as a Teacher
               </Link>
             </div>
             <div className="mt-2 text-center text-sm">
