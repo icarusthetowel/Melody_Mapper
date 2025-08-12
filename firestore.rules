@@ -1,44 +1,78 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
+    // Helper function to check if the user is an admin
     function isAdmin() {
-      // Check for role on the user's document in Firestore.
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    match /users/{userId} {
-      // A user can create their own document
-      allow create: if request.auth.uid == userId;
-      // An admin can read any user doc. A user can read their own.
-      allow read, list: if request.auth.uid == userId || isAdmin();
-      // No one can update/delete user docs for now
-      allow update, delete: if false;
-    }
-
-    match /students/{studentId} {
-      // Check if the currently authenticated user is the teacher assigned to the student document.
-      // This is more efficient than get() as email is in the auth token.
-      function isAssignedTeacher() {
-        return resource.data.teacherId == request.auth.token.email;
-      }
-      
-      // Only an Admin, or the assigned Teacher can read or update a student's record.
-      allow read, update: if isAdmin() || isAssignedTeacher();
-      
-      // Any authenticated user can list or create students.
-      // The application logic handles filtering lists and setting the correct teacherId on create.
-      allow list, create: if request.auth != null;
-      
-      // Only an Admin can delete a student.
-      allow delete: if isAdmin();
+    // Helper function to check if the user is a teacher
+    function isTeacher() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
     }
     
+    // Helper function to check if the user is a student
+    function isStudent() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+    }
+
+    // Rules for the 'users' collection
+    match /users/{userId} {
+      // Any authenticated user can read their own user document.
+      // Admins and teachers can read any user document (to populate dropdowns).
+      allow read: if request.auth != null && 
+        (request.auth.uid == userId || isAdmin() || isTeacher());
+      
+      // Allow user creation for anyone (on signup)
+      allow create: if request.auth != null;
+      
+      // Only an authenticated user can update their own document
+      allow update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Rules for the 'students' collection
+    match /students/{studentId} {
+      // Admins can create, read, update, delete any student.
+      // Teachers can create students.
+      allow create: if request.auth != null && (isAdmin() || isTeacher());
+      
+      // Read access:
+      // 1. Admins can read all students.
+      // 2. Teachers can read students assigned to them.
+      // 3. Students can read the profile they are assigned to.
+      allow read: if request.auth != null && (
+        isAdmin() ||
+        (isTeacher() && resource.data.teacherId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email) ||
+        (isStudent() && resource.data.studentUserId == request.auth.uid)
+      );
+
+      // Update access:
+      // 1. Admins can update any student.
+      // 2. Teachers can update students assigned to them.
+      allow update: if request.auth != null && (
+        isAdmin() || 
+        (isTeacher() && resource.data.teacherId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email)
+      );
+      
+      // Delete access:
+      // 1. Admins can delete any student.
+      // 2. Teachers can delete students assigned to them.
+       allow delete: if request.auth != null && (
+        isAdmin() || 
+        (isTeacher() && resource.data.teacherId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email)
+      );
+    }
+    
+    // Rules for the 'lessons' collection
     match /lessons/{lessonId} {
-      allow read, list: if request.auth != null; 
-      allow create, update, delete: if isAdmin();
+       // Admins and teachers can create, read, update, delete lessons.
+       // Students can only read lessons for their assigned student profile.
+       allow read: if request.auth != null && (
+        isAdmin() || isTeacher() || 
+        (isStudent() && get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.studentUserId == request.auth.uid)
+       );
+       allow write: if request.auth != null && (isAdmin() || isTeacher());
     }
   }
 }
