@@ -27,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { generatePracticePlan } from '@/ai/flows/generate-practice-plan';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, Loader2, Sparkles } from 'lucide-react';
+import { Bot, Loader2, Sparkles, Copy } from 'lucide-react';
 
 const formSchema = z.object({
   instrument: z.string().min(1, { message: 'Please select an instrument.' }),
@@ -70,6 +70,16 @@ export default function PracticePlanGeneratorPage() {
       setIsLoading(false);
     }
   }
+
+  const handleCopy = () => {
+    if (practicePlan) {
+      navigator.clipboard.writeText(practicePlan);
+      toast({
+        title: 'Copied!',
+        description: 'The practice plan has been copied to your clipboard.',
+      });
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -189,16 +199,27 @@ export default function PracticePlanGeneratorPage() {
             <CardTitle>Generated Practice Plan</CardTitle>
             <CardDescription>Your AI-powered plan will appear here.</CardDescription>
           </CardHeader>
-          <CardContent className="flex-grow flex items-center justify-center">
+          <CardContent className="flex-grow flex items-center justify-center relative">
             {isLoading ? (
               <div className="text-center text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin mb-2 mx-auto" />
                 <p>Generating your personalized plan...</p>
               </div>
             ) : practicePlan ? (
-              <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-                {practicePlan}
-              </div>
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 h-8 w-8"
+                  onClick={handleCopy}
+                >
+                  <Copy className="h-4 w-4" />
+                  <span className="sr-only">Copy</span>
+                </Button>
+                <div className="prose prose-sm max-w-none whitespace-pre-wrap w-full">
+                  {practicePlan}
+                </div>
+              </>
             ) : (
               <div className="text-center text-muted-foreground">
                 <p>Fill out the form to get started.</p>
