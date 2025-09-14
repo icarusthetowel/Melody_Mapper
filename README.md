@@ -55,3 +55,14 @@ To run this application, you need to connect it to a Firebase project. If you do
 7.  Click **Publish**.
 
 ### Version : as of 8/3/25 - 1.2
+
+## Copyright © 2025 Trevor Matthias Bercich. All rights reserved.
+
+This software and its source code are the intellectual property of Trevor Matthias Bercich and are protected under United States copyright law and international treaties.
+
+Unauthorized copying, distribution, modification, or use of this code, in whole or in part, is strictly prohibited without prior written consent from the author.
+
+This software is provided for evaluation purposes only and may not be used in commercial applications or derivative works without a licensing agreement.
+
+Contact: [Trevor.b@aiomnihardware.org]
+
