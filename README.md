@@ -18,7 +18,7 @@ To run this application, you need to connect it to a Firebase project. If you do
 3.  Firebase will provide you with a `firebaseConfig` object. It will look like this:
     ```javascript
     const firebaseConfig = {
-      apiKey: "AIza...",
+      apiKey: "jqxw...",
       authDomain: "your-project-id.firebaseapp.com",
       projectId: "your-project-id",
       storageBucket: "your-project-id.appspot.com",
@@ -55,3 +55,16 @@ To run this application, you need to connect it to a Firebase project. If you do
 7.  Click **Publish**.
 
 ### Version : as of 8/3/25 - 1.2
+
+##### For users outside of "teachers" and or "students" (recruiters, aplha/beta testers) create a teacher profile to explore the application and its features or Email me: trevor.b@aiomnihardware.org for a student demo or questions.
+
+## Copyright © 2025 Trevor Matthias Bercich. All rights reserved.
+
+This software and its source code are the intellectual property of Trevor Matthias Bercich and are protected under United States copyright law and international treaties.
+
+Unauthorized copying, distribution, modification, or use of this code, in whole or in part, is strictly prohibited without prior written consent from the author.
+
+This software is provided for evaluation purposes only and may not be used in commercial applications or derivative works without a licensing agreement.
+
+Contact: [Trevor.b@aiomnihardware.org]
+
