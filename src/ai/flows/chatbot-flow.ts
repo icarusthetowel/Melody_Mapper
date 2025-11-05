@@ -39,9 +39,10 @@ const chatFlow = ai.defineFlow(
     outputSchema: ChatOutputSchema,
   },
   async ({ history, message }) => {
-    const chat = ai.getChat({
+    const response = await ai.generate({
         model: 'googleai/gemini-2.0-flash',
-        history,
+        history: history,
+        prompt: message,
         system: `You are a friendly and helpful AI assistant for an application called Melody Mapper.
         
         Melody Mapper is a web app that helps music teachers and students manage lessons, track progress, and schedule events.
@@ -53,8 +54,6 @@ const chatFlow = ai.defineFlow(
         
         Keep your answers concise and helpful. Guide users on how to use the app. Do not make up features that don't exist.`
     });
-
-    const response = await chat.send(message);
 
     return {
       message: response.text,
