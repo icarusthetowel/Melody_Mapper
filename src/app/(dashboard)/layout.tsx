@@ -22,6 +22,7 @@ import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import type { User } from '@/lib/types';
+import { Chatbot } from '@/components/chatbot';
 
 export default function DashboardLayout({ children }: PropsWithChildren) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -121,6 +122,7 @@ export default function DashboardLayout({ children }: PropsWithChildren) {
           <main className="p-4 md:p-6">{children}</main>
         </SidebarInset>
       </SidebarProvider>
+      <Chatbot isLoggedIn={true} />
     </StudentsProvider>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
+import { Chatbot } from '@/components/chatbot';
 
 export const metadata: Metadata = {
   title: 'Melody Mapper',
@@ -11,8 +12,11 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.React.Object;
 }>) {
+  // A bit of a hack to check if the dashboard layout is a parent
+  const isDashboard = (children as any).props.childProp.segment === '(dashboard)';
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -30,6 +34,7 @@ export default function RootLayout({
       <body className={cn('font-body antialiased min-h-screen')} suppressHydrationWarning>
         {children}
         <Toaster />
+        {!isDashboard && <Chatbot />}
       </body>
     </html>
   );
