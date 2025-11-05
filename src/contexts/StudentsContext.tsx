@@ -12,15 +12,20 @@ import {
   doc,
   query,
   where,
+  type DocumentReference,
+  type CollectionReference,
+  type Query,
 } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface StudentsContextType {
   students: Student[];
-  addStudent: (newStudentData: Omit<Student, 'id' | 'progressHistory'>) => Promise<void>;
-  updateStudent: (updatedStudent: Student) => Promise<void>;
-  deleteStudent: (studentId: string) => Promise<void>;
-  assignTeacher: (studentId: string, teacherId: string | null) => Promise<void>;
-  assignStudentUser: (studentId: string, studentUserId: string | null) => Promise<void>;
+  addStudent: (newStudentData: Omit<Student, 'id' | 'progressHistory'>) => void;
+  updateStudent: (updatedStudent: Student) => void;
+  deleteStudent: (studentId: string) => void;
+  assignTeacher: (studentId: string, teacherId: string | null) => void;
+  assignStudentUser: (studentId: string, studentUserId: string | null) => void;
   getStudentById: (studentId: string) => Student | undefined;
   currentUser: User | null;
 }
@@ -34,6 +39,19 @@ export function useStudents() {
   }
   return context;
 }
+
+// Helper to get the path from a ref
+function getRefPath(ref: DocumentReference | CollectionReference | Query) {
+    if ('path' in ref) {
+        return ref.path;
+    }
+    // For queries, we have to reconstruct the path. This is a simplification.
+    const queryRef = ref as Query;
+    // This is a hacky way to get the path, but it's good enough for our debugging purposes.
+    // @ts-ignore
+    return queryRef._query.path.segments.join('/');
+}
+
 
 export function StudentsProvider({ children, currentUser }: { children: ReactNode, currentUser: User | null }) {
   const [students, setStudents] = useState<Student[]>([]);
@@ -62,7 +80,11 @@ export function StudentsProvider({ children, currentUser }: { children: ReactNod
       })) as Student[];
       setStudents(studentsData);
     }, (error) => {
-        console.error("Error fetching students:", error);
+        const permissionError = new FirestorePermissionError({
+          path: getRefPath(q),
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
     });
 
     return () => unsubscribe();
@@ -79,28 +101,65 @@ export function StudentsProvider({ children, currentUser }: { children: ReactNod
         },
       ],
     };
-    await addDoc(collection(db, 'students'), newStudent);
+    const studentsCollection = collection(db, 'students');
+    addDoc(studentsCollection, newStudent).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: getRefPath(studentsCollection),
+            operation: 'create',
+            requestResourceData: newStudent,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    });
   }, []);
 
   const updateStudent = useCallback(async (updatedStudent: Student) => {
     const studentRef = doc(db, 'students', updatedStudent.id);
     const { id, ...dataToUpdate } = updatedStudent;
-    await updateDoc(studentRef, dataToUpdate);
+    updateDoc(studentRef, dataToUpdate).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: getRefPath(studentRef),
+            operation: 'update',
+            requestResourceData: dataToUpdate,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    });
   }, []);
 
   const deleteStudent = useCallback(async (studentId: string) => {
     const studentRef = doc(db, 'students', studentId);
-    await deleteDoc(studentRef);
+    deleteDoc(studentRef).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: getRefPath(studentRef),
+            operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    });
   }, []);
     
   const assignTeacher = useCallback(async (studentId: string, teacherId: string | null) => {
     const studentRef = doc(db, 'students', studentId);
-    await updateDoc(studentRef, { teacherId });
+    const dataToUpdate = { teacherId };
+    updateDoc(studentRef, dataToUpdate).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: getRefPath(studentRef),
+            operation: 'update',
+            requestResourceData: dataToUpdate
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    });
   }, []);
 
   const assignStudentUser = useCallback(async (studentId: string, studentUserId: string | null) => {
     const studentRef = doc(db, 'students', studentId);
-    await updateDoc(studentRef, { studentUserId });
+    const dataToUpdate = { studentUserId };
+    updateDoc(studentRef, dataToUpdate).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: getRefPath(studentRef),
+            operation: 'update',
+            requestResourceData: dataToUpdate
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    });
   }, []);
 
   const getStudentById = useCallback((studentId: string) => {

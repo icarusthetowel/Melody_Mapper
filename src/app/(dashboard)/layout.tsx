@@ -23,6 +23,7 @@ import { onAuthStateChanged, signOut, type User as FirebaseUser } from 'firebase
 import { doc, getDoc } from 'firebase/firestore';
 import type { User } from '@/lib/types';
 import { Chatbot } from '@/components/chatbot';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 export default function DashboardLayout({ children }: PropsWithChildren) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -76,6 +77,7 @@ export default function DashboardLayout({ children }: PropsWithChildren) {
 
   return (
     <StudentsProvider currentUser={currentUser}>
+      <FirebaseErrorListener />
       <SidebarProvider>
         <Sidebar>
           <SidebarHeader className="p-4">
