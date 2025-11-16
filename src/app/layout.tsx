@@ -1,36 +1,40 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-import { Toaster } from "@/components/ui/toaster"
-import { AuthProvider } from '@/context/AuthContext'
-import { StudentProvider } from '@/context/StudentContext'
-import AppWrapper from '@/components/AppWrapper'
-
-const inter = Inter({ subsets: ['latin'] })
+import type { Metadata } from 'next';
+import './globals.css';
+import { Toaster } from '@/components/ui/toaster';
+import { cn } from '@/lib/utils';
+import { LayoutProvider } from '@/components/layout-provider';
 
 export const metadata: Metadata = {
   title: 'Melody Mapper',
-  description: 'Your personal music practice assistant.',
-  manifest: '/site.webmanifest',
-}
+  description: 'Log and track progress for your music students.',
+};
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <AuthProvider>
-          <StudentProvider>
-            <AppWrapper>
-              {children}
-            </AppWrapper>
-          </StudentProvider>
-        </AuthProvider>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body
+        className={cn('font-body antialiased min-h-screen')}
+        suppressHydrationWarning
+      >
+        <LayoutProvider>{children}</LayoutProvider>
         <Toaster />
       </body>
     </html>
-  )
+  );
 }
