@@ -75,7 +75,7 @@ const summarizeLessonFlow = ai.defineFlow(
     
     // 1. Transcribe the audio
     const { text: transcript } = await ai.generate({
-      model: 'googleai/gemini-1.5-flash-latest',
+      model: 'googleai/gemini-2.5-flash-lite',
       prompt: [
         { media: { url: audioDataUri } },
         { text: 'Transcribe this audio of a music lesson.' },
