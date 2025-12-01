@@ -75,7 +75,7 @@ const summarizeLessonFlow = ai.defineFlow(
     
     // 1. Transcribe the audio
     const { text: transcript } = await ai.generate({
-      model: 'googleai/gemini-2.0-pro',
+      model: 'googleai/gemini-1.5-flash-latest',
       prompt: [
         { media: { url: audioDataUri } },
         { text: 'Transcribe this audio of a music lesson.' },
@@ -92,7 +92,7 @@ const summarizeLessonFlow = ai.defineFlow(
 
     // 2. Summarize the transcript
     const { output: summaryOutput } = await ai.generate({
-      model: 'googleai/gemini-2.0-flash',
+      model: 'googleai/gemini-1.5-flash-latest',
       prompt: `You are an expert music teacher's assistant. Based on the following lesson transcript for a ${instrument} student named ${studentName}, create a concise, structured lesson summary in Markdown format.
 
       The summary should include:
