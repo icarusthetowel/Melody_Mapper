@@ -51,9 +51,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, BookOpen, Edit, Loader2, AlertTriangle, Link as LinkIcon, File, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Edit, Loader2, AlertTriangle, Link as LinkIcon, File, Trash2, Mic } from 'lucide-react';
 import { format } from 'date-fns';
 import { useStudents } from '@/contexts/StudentsContext';
+import Link from 'next/link';
 
 const progressFormSchema = z.object({
   progress: z.number().min(0).max(100),
@@ -233,10 +234,22 @@ export default function StudentDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Button variant="outline" onClick={() => router.back()} className="w-fit">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Dashboard
-      </Button>
+      <div className="flex justify-between items-center">
+        <Button variant="outline" onClick={() => router.back()} className="w-fit">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Dashboard
+        </Button>
+
+        {canEdit && (
+          <Link href={`/record-lesson/${student.id}`} passHref>
+            <Button>
+              <Mic className="mr-2 h-4 w-4" />
+              Record Lesson
+            </Button>
+          </Link>
+        )}
+      </div>
+      
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1 flex flex-col gap-6">
@@ -363,7 +376,7 @@ export default function StudentDetailPage() {
                           <p className="font-semibold text-sm">
                             {format(new Date(log.date), 'MMMM d, yyyy')}
                           </p>
-                          <p className="text-muted-foreground">{log.notes}</p>
+                          <div className="text-muted-foreground prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: log.notes.replace(/\n/g, '<br />') }} />
                         </div>
                       </div>
                     ))}
