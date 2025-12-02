@@ -115,7 +115,7 @@ export function Chatbot({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
          )}
         </AnimatePresence>
 
-        <div className="fixed bottom-4 right-4 z-50">
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
             <AnimatePresence>
             {isOpen && (
                 <motion.div
@@ -203,7 +203,7 @@ export function Chatbot({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="absolute bottom-0 right-0">
+                >
                 <Button onClick={toggleOpen} size="icon" className="rounded-full h-14 w-14 shadow-lg">
                     {isOpen ? <X /> : <Bot />}
                 </Button>
