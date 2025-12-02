@@ -31,13 +31,21 @@ export function Chatbot({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   const isLoginPage = pathname === '/' || pathname === '/signup' || pathname === '/teacher-signup' || pathname === '/admin-login' || pathname === '/admin-signup';
 
   useEffect(() => {
-    let welcomeTimer: NodeJS.Timeout;
+    let showTimer: NodeJS.Timeout;
+    let hideTimer: NodeJS.Timeout;
     if (isLoginPage && !isOpen) {
-      welcomeTimer = setTimeout(() => {
+      showTimer = setTimeout(() => {
         setShowWelcome(true);
-      }, 2000);
+        // Hide the welcome message after it has been visible for a while
+        hideTimer = setTimeout(() => {
+          setShowWelcome(false);
+        }, 5000); // visible for 5 seconds
+      }, 2000); // appears after 2 seconds
     }
-    return () => clearTimeout(welcomeTimer);
+    return () => {
+        clearTimeout(showTimer);
+        clearTimeout(hideTimer);
+    };
   }, [isLoginPage, isOpen]);
 
 
@@ -108,7 +116,7 @@ export function Chatbot({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
                         <X size={16} />
                     </button>
                     <CardContent className="p-3 text-sm">
-                        <p>Welcome to Melody Mapper! If you need help getting started, feel free to ask me any questions.</p>
+                        <p>Welcome to Melody Mapper! If you need help getting started, feel free to ask.</p>
                     </CardContent>
                 </Card>
             </motion.div>
@@ -203,6 +211,7 @@ export function Chatbot({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
+                className={cn(isOpen && "pointer-events-none")}
                 >
                 <Button onClick={toggleOpen} size="icon" className="rounded-full h-14 w-14 shadow-lg">
                     {isOpen ? <X /> : <Bot />}
