@@ -211,7 +211,6 @@ export function Chatbot({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={cn(isOpen && "pointer-events-none")}
                 >
                 <Button onClick={toggleOpen} size="icon" className="rounded-full h-14 w-14 shadow-lg">
                     {isOpen ? <X /> : <Bot />}
