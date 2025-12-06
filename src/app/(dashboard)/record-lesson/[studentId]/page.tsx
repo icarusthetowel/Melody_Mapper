@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -20,11 +21,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Mic, StopCircle, User, Redo, Save, AlertTriangle, ChevronRight, MicOff, ListMusic } from 'lucide-react';
+import { Loader2, Mic, StopCircle, User, Redo, Save, AlertTriangle, ChevronRight, MicOff, ListMusic, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { summarizeLesson } from '@/ai/flows/summarize-lesson-flow';
 import type { ProgressLog, Student } from '@/lib/types';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
 
 type WizardStep = 'selectDevice' | 'recording' | 'processing' | 'review';
 
@@ -49,6 +52,7 @@ export default function RecordLessonPage() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [summary, setSummary] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -59,12 +63,16 @@ export default function RecordLessonPage() {
     const fetchedStudent = getStudentById(studentId);
     if (fetchedStudent) {
       setStudent(fetchedStudent);
+      setProgress(fetchedStudent.progress || 0);
     } else {
        // If student not found in context (e.g., on page refresh), it might still be loading
        // This is a basic handling, a more robust solution might involve a global loading state
        setTimeout(() => {
          const refetched = getStudentById(studentId);
-         if(refetched) setStudent(refetched)
+         if(refetched) {
+            setStudent(refetched);
+            setProgress(refetched.progress || 0);
+         }
        }, 1000)
     }
   }, [studentId, getStudentById]);
@@ -177,11 +185,12 @@ export default function RecordLessonPage() {
      const newHistoryEntry: ProgressLog = {
       date: new Date().toISOString(),
       notes: summary,
-      progress: student.progress, // We don't update progress here, just log the lesson
+      progress: progress,
     };
 
     const updatedStudent: Student = {
       ...student,
+      progress: progress,
       progressHistory: [...(student.progressHistory || []), newHistoryEntry],
     };
 
@@ -207,7 +216,18 @@ export default function RecordLessonPage() {
   const handleDiscard = () => {
     setSummary('');
     setRecordingTime(0);
+    if(student) setProgress(student.progress);
     setStep('selectDevice');
+  };
+
+  const handleCopy = () => {
+    if (summary) {
+      navigator.clipboard.writeText(summary);
+      toast({
+        title: 'Copied!',
+        description: 'The lesson summary has been copied to your clipboard.',
+      });
+    }
   };
   
   if (!student) {
@@ -314,9 +334,30 @@ export default function RecordLessonPage() {
                              <CardTitle className="flex items-center gap-2"><User className="w-5 h-5"/> Step 3: Review Summary</CardTitle>
                              <CardDescription>Review the generated summary. You can save it to the student's log or discard it and start over.</CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <div className="prose prose-sm max-w-none rounded-md border p-4 h-64 overflow-y-auto">
+                        <CardContent className="relative space-y-4">
+                             <Button
+                                variant="ghost"
+                                size="icon"
+                                className="absolute top-0 right-0 h-8 w-8"
+                                onClick={handleCopy}
+                                >
+                                <Copy className="h-4 w-4" />
+                                <span className="sr-only">Copy</span>
+                            </Button>
+                            <div className="prose prose-sm max-w-none rounded-md border p-4 h-64 overflow-y-auto bg-muted/50">
                                 <div dangerouslySetInnerHTML={{ __html: summary.replace(/\n/g, '<br />') }} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="progress">Update Progress: {progress}%</Label>
+                                <Slider
+                                    id="progress"
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    value={[progress]}
+                                    onValueChange={(value) => setProgress(value[0])}
+                                    disabled={isSaving}
+                                />
                             </div>
                         </CardContent>
                         <CardFooter className="flex justify-end gap-2">
