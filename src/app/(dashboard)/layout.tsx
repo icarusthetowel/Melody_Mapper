@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { PropsWithChildren } from 'react';
@@ -24,6 +23,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import type { User } from '@/lib/types';
 import { Chatbot } from '@/components/chatbot';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { StudentSearch } from '@/components/student-search';
 
 export default function DashboardLayout({ children }: PropsWithChildren) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -89,6 +89,7 @@ export default function DashboardLayout({ children }: PropsWithChildren) {
                 </h2>
               </div>
             </div>
+            <StudentSearch />
           </SidebarHeader>
           <SidebarContent>
             <DashboardNav />
