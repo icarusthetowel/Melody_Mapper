@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -59,6 +62,12 @@ export function StudentSearch() {
             </Button>
         </DialogTrigger>
         <DialogContent className="p-0 gap-0 max-w-lg">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Search Students</DialogTitle>
+              <DialogDescription>
+                Start typing a student's name to search and navigate to their profile.
+              </DialogDescription>
+            </DialogHeader>
             <div className="flex items-center px-4 py-2 border-b">
                 <Search className="h-5 w-5 text-muted-foreground" />
                 <Input
