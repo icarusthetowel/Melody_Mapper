@@ -24,7 +24,7 @@ export function DashboardNav() {
       href: '/practice-plan-generator',
       label: 'AI Practice Planner',
       icon: Bot,
-      roles: ['admin', 'teacher'],
+      roles: ['admin', 'teacher', 'student'],
     },
      // This will be a placeholder, the real link is dynamic from student page
     { href: '#', label: 'Record Lesson', icon: ListMusic, roles: ['admin', 'teacher'], disabled: true },
