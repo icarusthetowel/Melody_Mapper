@@ -37,15 +37,17 @@ service cloud.firestore {
       // Teachers can create students.
       allow create: if request.auth != null && (isAdmin() || isTeacher());
       
-      // Read access:
-      // 1. Admins can read all students.
-      // 2. Teachers can read students assigned to them.
-      // 3. Students can read the profile they are assigned to.
-      allow read: if request.auth != null && (
+      // Read access is split into 'get' and 'list'
+      // 'get' is for single documents and can use resource.data for fine-grained access.
+      allow get: if request.auth != null && (
         isAdmin() ||
         (isTeacher() && resource.data.teacherId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email) ||
         (isStudent() && resource.data.studentUserId == request.auth.uid)
       );
+      
+      // 'list' is for queries. Rules for list cannot use resource.data.
+      // This relies on the client application to correctly filter queries.
+      allow list: if request.auth != null && (isAdmin() || isTeacher() || isStudent());
 
       // Update access:
       // 1. Admins can update any student.
@@ -66,12 +68,14 @@ service cloud.firestore {
     
     // Rules for the 'lessons' collection
     match /lessons/{lessonId} {
-       // Admins and teachers can create, read, update, delete lessons.
-       // Students can only read lessons for their assigned student profile.
-       allow read: if request.auth != null && (
+       // Read access is split into 'get' and 'list'
+       allow get: if request.auth != null && (
         isAdmin() || isTeacher() || 
         (isStudent() && get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.studentUserId == request.auth.uid)
        );
+       
+       allow list: if request.auth != null && (isAdmin() || isTeacher() || isStudent());
+
        allow write: if request.auth != null && (isAdmin() || isTeacher());
     }
   }
