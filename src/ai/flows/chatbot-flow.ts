@@ -40,7 +40,7 @@ const chatFlow = ai.defineFlow(
   },
   async ({ history, message }) => {
     const response = await ai.generate({
-        model: 'googleai/gemini-2.0-flash',
+        model: 'googleai/gemini-3.1-flash-lite-preview',
         history: history,
         prompt: message,
         system: `You are a friendly and helpful AI assistant for an application called Melody Mapper.
