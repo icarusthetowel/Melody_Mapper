@@ -51,6 +51,7 @@ const prompt = ai.definePrompt({
   prompt: `You are an experienced music teacher generating a practice plan for your student.
 
   Consider the student's goals, skill level, past lessons, and instrument to create a personalized practice plan. Be concise and directive.
+  Use emojis for section headers and bullet points to make the plan visually engaging. Do NOT use asterisks or markdown bold formatting (no ** or *).
 
   Student Goals: {{{studentGoals}}}
   Skill Level: {{{skillLevel}}}

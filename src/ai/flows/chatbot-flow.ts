@@ -52,7 +52,8 @@ const chatFlow = ai.defineFlow(
         - Teacher: Can manage their own students, log progress, schedule lessons, and generate AI practice plans.
         - Student: Can view their own progress, documents, and upcoming lessons.
         
-        Keep your answers concise and helpful. Guide users on how to use the app. Do not make up features that don't exist.`
+        Keep your answers concise and helpful. Guide users on how to use the app. Do not make up features that don't exist.
+        Use emojis naturally in your responses to make them friendly and visually clear. Do NOT use asterisks or markdown bold formatting (no ** or *).`
     });
 
     return {

@@ -95,12 +95,12 @@ const summarizeLessonFlow = ai.defineFlow(
       model: 'googleai/gemini-2.5-flash',
       prompt: `You are an expert music teacher's assistant. Based on the following lesson transcript for a ${instrument} student named ${studentName}, create a concise, structured lesson summary in Markdown format.
 
-      The summary should include:
-      - **Key Topics Covered:** (e.g., specific scales, techniques, or song sections)
-      - **Areas for Improvement:** (e.g., timing issues, incorrect fingerings)
-      - **Actionable Practice Recommendations:** (e.g., "Practice the C major scale with a metronome at 80 BPM")
+      The summary should include the following sections. Use emojis as section headers instead of asterisks or markdown bold:
+      🎵 Key Topics Covered: (e.g., specific scales, techniques, or song sections)
+      ⚠️ Areas for Improvement: (e.g., timing issues, incorrect fingerings)
+      ✅ Actionable Practice Recommendations: (e.g., "Practice the C major scale with a metronome at 80 BPM")
       
-      Keep the summary professional and easy to read.
+      Use emojis for bullet points and section headers. Do NOT use asterisks or markdown bold formatting. Keep the summary professional and easy to read.
 
       Transcript:
       ---
