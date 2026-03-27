@@ -51,7 +51,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, BookOpen, Edit, Loader2, AlertTriangle, Link as LinkIcon, File, Trash2, Mic } from 'lucide-react';
+import { ArrowLeft, BookOpen, Edit, Loader2, AlertTriangle, Link as LinkIcon, File, Trash2, Mic, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { useStudents } from '@/contexts/StudentsContext';
 import Link from 'next/link';
@@ -235,18 +235,25 @@ export default function StudentDetailPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex justify-between items-center">
-        <Button variant="outline" onClick={() => router.back()} className="w-fit">
+        <Button variant="outline" onClick={() => router.push('/dashboard')} className="w-fit">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Dashboard
         </Button>
 
         {canEdit && (
-          <Link href={`/record-lesson/${student.id}`} passHref>
-            <Button>
-              <Mic className="mr-2 h-4 w-4" />
-              Record Lesson
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href={`/student/${student.id}/settings`} passHref>
+              <Button variant="outline" size="icon">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href={`/record-lesson/${student.id}`} passHref>
+              <Button>
+                <Mic className="mr-2 h-4 w-4" />
+                Record Lesson
+              </Button>
+            </Link>
+          </div>
         )}
       </div>
       
