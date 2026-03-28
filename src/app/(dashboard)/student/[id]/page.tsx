@@ -233,8 +233,8 @@ export default function StudentDetailPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center">
+    <div className="flex min-w-0 flex-col gap-6 overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="outline" onClick={() => router.push('/dashboard')} className="w-fit">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Dashboard
@@ -258,8 +258,8 @@ export default function StudentDetailPage() {
       </div>
       
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-1 flex flex-col gap-6">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-1 flex flex-col gap-6">
           <Card>
             <CardHeader className="flex-row items-center gap-4">
               <Avatar className="h-16 w-16">
@@ -351,7 +351,7 @@ export default function StudentDetailPage() {
           )}
         </div>
 
-        <div className="lg:col-span-2 flex flex-col gap-6">
+        <div className="min-w-0 lg:col-span-2 flex flex-col gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -410,15 +410,15 @@ export default function StudentDetailPage() {
               {student.documents && student.documents.length > 0 ? (
                 <div className="space-y-2">
                   {student.documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-2 rounded-md border group">
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline truncate">
-                        <LinkIcon className="h-4 w-4" />
-                        <span className="truncate">{doc.name}</span>
+                    <div key={doc.id} className="group flex flex-col gap-2 rounded-md border p-2 sm:flex-row sm:items-center sm:justify-between">
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 flex-1 items-start gap-2 text-primary hover:underline">
+                        <LinkIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span className="break-words whitespace-normal">{doc.name}</span>
                       </a>
                        {canEdit && (
                          <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 self-end opacity-100 transition-opacity sm:self-auto sm:opacity-0 sm:group-hover:opacity-100">
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </AlertDialogTrigger>
