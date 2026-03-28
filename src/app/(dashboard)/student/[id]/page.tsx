@@ -208,6 +208,27 @@ export default function StudentDetailPage() {
     }
   };
 
+  const handleDeleteProgressLog = async (logDate: string) => {
+    if (!student || !canEdit) return;
+
+    const updatedHistory = student.progressHistory?.filter(log => log.date !== logDate);
+
+    try {
+      await updateStudent({ ...student, progressHistory: updatedHistory });
+      toast({
+        title: 'Progress Log Deleted',
+        description: 'The progress log has been removed.',
+      });
+    } catch(error) {
+      console.error("Error deleting progress log:", error);
+      toast({
+        title: 'Delete Failed',
+        description: 'Could not delete the progress log.',
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   if (students.length === 0 && !student) {
     return (
@@ -370,7 +391,7 @@ export default function StudentDetailPage() {
                     .map((log, index) => (
                       <div
                         key={index}
-                        className="flex gap-4 border-b pb-4 last:border-b-0 last:pb-0"
+                        className="group flex gap-4 border-b pb-4 last:border-b-0 last:pb-0"
                       >
                         <div className="flex-shrink-0">
                           <div className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-muted">
@@ -379,10 +400,33 @@ export default function StudentDetailPage() {
                             </span>
                           </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm">
-                            {format(new Date(log.date), 'MMMM d, yyyy')}
-                          </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2 justify-between">
+                            <p className="font-semibold text-sm">
+                              {format(new Date(log.date), 'MMMM d, yyyy')}
+                            </p>
+                            {canEdit && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently delete the progress log from {format(new Date(log.date), 'MMMM d, yyyy')}.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteProgressLog(log.date)}>Delete</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
                           <div className="text-muted-foreground prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: log.notes.replace(/\n/g, '<br />') }} />
                         </div>
                       </div>
