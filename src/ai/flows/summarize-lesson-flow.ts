@@ -99,6 +99,7 @@ const summarizeLessonFlow = ai.defineFlow(
       🎵 Key Topics Covered: (e.g., specific scales, techniques, or song sections)
       ⚠️ Areas for Improvement: (e.g., timing issues, incorrect fingerings)
       ✅ Actionable Practice Recommendations: (e.g., "Practice the C major scale with a metronome at 80 BPM")
+      🎶 Overall, recap and summary of the lesson that provides clear overview and description of that lesson or lessons, outside of the other sections that are covered in the transcription.
       
       Use emojis for bullet points and section headers. Do NOT use asterisks or markdown bold formatting. Keep the summary professional and easy to read.
 
